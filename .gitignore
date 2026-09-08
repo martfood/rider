@@ -1,0 +1,60 @@
+# OS & IDE
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Flutter & Dart
+.dart_tool/
+**/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+.pub-cache/
+**/.pub-cache/
+.pub/
+**/.pub/
+build/
+**/build/
+coverage/
+**/coverage/
+
+# Android Studio & Gradle
+.gradle/
+**/.gradle/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+key.properties
+**/key.properties
+*.keystore
+*.jks
+
+# iOS & Xcode
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/ephemeral/
+**/ios/Runner.xcworkspace/xcuserdata/
+**/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+**/ios/Runner.xcodeproj/xcuserdata/
+*.key
+*.cer
+*.certSigningRequest
+*.p8
+*.p12
+*.mobileprovision
+
+# Ensure App Icons & Images are NOT ignored
+!**/Assets.xcassets/**
+!**/AppIcon.appiconset/**
+!**/*.png
+!**/*.jpg
+!**/*.jpeg
+!**/*.svg

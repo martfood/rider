@@ -27,32 +27,39 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future<void>.delayed(const Duration(seconds: 2));
     if (!mounted) return;
     
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        final doc = await FirebaseFirestore.instance
-            .collection('riders')
-            .doc(user.uid)
-            .get()
-            .timeout(const Duration(seconds: 4));
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('riders')
+              .doc(user.uid)
+              .get()
+              .timeout(const Duration(seconds: 4));
 
-        if (doc.exists && AccountStatusService.isSuspended(doc.data())) {
-          final info = AccountStatusService.parseSuspension(doc.data());
-          await FirebaseAuth.instance.signOut();
-          if (mounted) {
-            context.go('/auth/login', extra: {
-              'suspensionReason': info.reason,
-              'suspendedUntil': info.suspendedUntil,
-            });
+          if (doc.exists && AccountStatusService.isSuspended(doc.data())) {
+            final info = AccountStatusService.parseSuspension(doc.data());
+            await FirebaseAuth.instance.signOut();
+            if (mounted) {
+              context.go('/auth/login', extra: {
+                'suspensionReason': info.reason,
+                'suspendedUntil': info.suspendedUntil,
+              });
+            }
+            return;
           }
-          return;
-        }
-      } catch (_) {}
+        } catch (_) {}
 
-      if (mounted) {
-        context.go('/home');
+        if (mounted) {
+          context.go('/home');
+        }
+        return;
       }
-    } else {
+    } catch (e) {
+      debugPrint('SplashScreen auth check error: $e');
+    }
+
+    if (mounted) {
       context.go('/get-started');
     }
   }

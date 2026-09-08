@@ -16,6 +16,15 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppTypography.scale = 1.0;
   try {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  } catch (e) {
+    debugPrint('PreferredOrientations error: $e');
+  }
+
+  try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
@@ -23,10 +32,13 @@ void main() async {
     debugPrint('Firebase initialization error: $e\n$stack');
   }
 
+  // Non-blocking notification initialization so runApp() is never blocked or delayed
   try {
-    await NotificationService.initialize();
+    NotificationService.initialize().catchError((e) {
+      debugPrint('NotificationService initialization error: $e');
+    });
   } catch (e, stack) {
-    debugPrint('NotificationService initialization error: $e\n$stack');
+    debugPrint('NotificationService kickoff error: $e\n$stack');
   }
 
   try {

@@ -13,6 +13,7 @@ import 'package:shared_widgets/core/theme/app_theme.dart';
 import '../../providers/rider_app_providers.dart';
 import '../../providers/rider_profile_provider.dart';
 import '../../core/services/app_update_service.dart';
+import '../../core/services/rider_location_service.dart';
 import 'order_acceptance_success_sheet.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -35,9 +36,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         .where('broadcastStatus', isEqualTo: 'broadcasting')
         .snapshots();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         AppUpdateService.checkAndPromptUpdate(context);
+        // If rider is currently online, verify location permission & GPS service
+        final isOnline = ref.read(riderAvailabilityProvider);
+        if (isOnline) {
+          final hasPerm = await RiderLocationService.instance.checkPermission();
+          if (!hasPerm && mounted) {
+            final granted = await RiderLocationService.instance.requestPermission(context);
+            if (!granted) {
+              ref.read(riderAvailabilityProvider.notifier).setOnline(false);
+            }
+          }
+        }
       }
     });
   }
@@ -445,18 +457,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                             inactiveThumbColor: Colors.white,
                             inactiveTrackColor: isDark ? Colors.grey[700] : Colors.grey[300],
                             trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-                            onChanged: (v) {
-                              if (profile.verificationStatus != 'verified') {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "Please verify your identity before you can come online or accept orders.",
+                            onChanged: (v) async {
+                              if (v) {
+                                if (profile.verificationStatus != 'verified') {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "Please verify your identity before you can come online or accept orders.",
+                                      ),
                                     ),
-                                  ),
-                                );
-                                return;
+                                  );
+                                  return;
+                                }
+                                final granted = await RiderLocationService.instance.requestPermission(context);
+                                if (!granted) {
+                                  return;
+                                }
+                                ref.read(riderAvailabilityProvider.notifier).setOnline(true);
+                              } else {
+                                ref.read(riderAvailabilityProvider.notifier).setOnline(false);
                               }
-                              ref.read(riderAvailabilityProvider.notifier).setOnline(v);
                             },
                           ),
                         ),

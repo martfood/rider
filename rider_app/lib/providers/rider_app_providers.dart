@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/services/rider_location_service.dart';
 import '../domain/bank_details.dart';
 
 class RiderAvailabilityNotifier extends Notifier<bool> {
@@ -11,7 +12,10 @@ class RiderAvailabilityNotifier extends Notifier<bool> {
   @override
   bool build() {
     _listenToAvailability();
-    ref.onDispose(() => _sub?.cancel());
+    ref.onDispose(() {
+      _sub?.cancel();
+      RiderLocationService.instance.stopLiveTracking();
+    });
     return false;
   }
 
@@ -29,9 +33,17 @@ class RiderAvailabilityNotifier extends Notifier<bool> {
         final status = (doc.data()!['status'] ?? 'offline').toString().toLowerCase().trim();
         final isOnlineFlag = doc.data()!['isOnline'] == true ||
             doc.data()!['isOnline']?.toString().toLowerCase() == 'true';
-        state = (status == 'online' || status == 'available' || isOnlineFlag) && status != 'offline';
+        final isOnline = (status == 'online' || status == 'available' || isOnlineFlag) && status != 'offline';
+        state = isOnline;
+
+        if (isOnline) {
+          RiderLocationService.instance.startLiveTracking();
+        } else {
+          RiderLocationService.instance.stopLiveTracking();
+        }
       } else {
         state = false;
+        RiderLocationService.instance.stopLiveTracking();
       }
     });
   }
@@ -39,6 +51,12 @@ class RiderAvailabilityNotifier extends Notifier<bool> {
   Future<void> setOnline(bool value) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
+
+    if (value) {
+      RiderLocationService.instance.startLiveTracking();
+    } else {
+      RiderLocationService.instance.stopLiveTracking();
+    }
 
     final batch = FirebaseFirestore.instance.batch();
 

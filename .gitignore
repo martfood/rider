@@ -21,12 +21,23 @@ Thumbs.db
 **/.pub/
 build/
 **/build/
+rider_app/build/
+**/rider_app/build/
+*.aab
+*.apk
+*.ap_
 coverage/
 **/coverage/
 
-# Android Studio & Gradle
+# Android Studio, Gradle & Kotlin
 .gradle/
 **/.gradle/
+.kotlin/
+**/.kotlin/
+**/android/.kotlin/
+**/android/.gradle/
+local.properties
+**/local.properties
 **/android/app/debug/
 **/android/app/profile/
 **/android/app/release/
@@ -51,10 +62,15 @@ key.properties
 *.p12
 *.mobileprovision
 
-# Ensure App Icons & Images are NOT ignored
+# Ensure App Icons & Images in source directories are NOT ignored
 !**/Assets.xcassets/**
 !**/AppIcon.appiconset/**
+!**/assets/**
 !**/*.png
 !**/*.jpg
 !**/*.jpeg
 !**/*.svg
+
+# Explicitly guarantee build outputs are NEVER re-included under any circumstance
+rider_app/build/**
+**/build/**

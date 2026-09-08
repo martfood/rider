@@ -179,8 +179,8 @@ class _RiderSettingsScreenState extends ConsumerState<RiderSettingsScreen> {
                     'Choose your preferred theme appearance for MartFood.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: AppTypography.font(14),
-                      fontWeight: FontWeight.w400,
+                      fontSize: AppTypography.font(AppFontSizes.bodyMedium),
+                      fontWeight: FontWeight.w500,
                       color: mutedTextColor,
                       height: 1.4,
                     ),

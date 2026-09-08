@@ -154,10 +154,10 @@ MartFood maintains zero tolerance for harassment, theft, unauthorized order tamp
                             Text(
                               content,
                               style: TextStyle(
-                                fontSize: AppTypography.font(14),
+                                fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                                 color: primaryTextColor.withValues(alpha: 0.90),
                                 height: 1.65,
-                                fontWeight: FontWeight.w400,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],

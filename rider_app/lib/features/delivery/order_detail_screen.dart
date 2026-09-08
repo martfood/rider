@@ -709,7 +709,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                       Text(
                                         'Pick Up',
                                         style: TextStyle(
-                                          fontSize: AppTypography.font(11),
+                                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
                                           fontWeight: FontWeight.w600,
                                           color: purpleColor,
                                         ),
@@ -800,7 +800,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                       Text(
                                         'Drop Off',
                                         style: TextStyle(
-                                          fontSize: AppTypography.font(11),
+                                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
                                           fontWeight: FontWeight.w600,
                                           color: purpleColor,
                                         ),
@@ -1144,7 +1144,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: AppTypography.font(10.5),
+                    fontSize: AppTypography.font(AppFontSizes.caption),
                     fontWeight: i <= activeStepIndex ? FontWeight.w700 : FontWeight.w500,
                     color: i <= activeStepIndex ? purpleColor : mutedTextColor,
                   ),
@@ -1215,7 +1215,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   child: Text(
                     _pinErrorMessage!,
                     style: TextStyle(
-                      fontSize: AppTypography.font(11.5),
+                      fontSize: AppTypography.font(AppFontSizes.bodySmall),
                       fontWeight: FontWeight.w600,
                       color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
                     ),

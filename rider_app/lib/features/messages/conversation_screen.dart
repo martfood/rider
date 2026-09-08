@@ -376,7 +376,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                             : 'C',
                         style: TextStyle(
                           color: purpleColor,
-                          fontSize: 16,
+                          fontSize: AppTypography.font(AppFontSizes.bodyLarge),
                           fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
@@ -436,7 +436,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
                                 'No messages yet. Send a message to start!',
                                 style: TextStyle(
                                   color: isDark ? Colors.grey[400] : Colors.grey[600],
-                                  fontSize: AppTypography.font(14),
+                                  fontSize: AppTypography.font(AppFontSizes.bodyMedium),
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
@@ -506,7 +507,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
               text,
               style: TextStyle(
                 color: primaryTextColor,
-                fontSize: AppTypography.font(15),
+                fontSize: AppTypography.font(AppFontSizes.bodyMedium),
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 4),
@@ -514,7 +516,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
               time,
               style: TextStyle(
                 color: isDark ? Colors.grey[400] : Colors.grey[600],
-                fontSize: AppTypography.font(10),
+                fontSize: AppTypography.font(AppFontSizes.caption),
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -546,7 +549,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
               text,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: AppTypography.font(15),
+                fontSize: AppTypography.font(AppFontSizes.bodyMedium),
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 4),
@@ -554,7 +558,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
               time,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.7),
-                fontSize: AppTypography.font(10),
+                fontSize: AppTypography.font(AppFontSizes.caption),
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],

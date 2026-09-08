@@ -94,10 +94,10 @@ class AuthErrorHandler {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                 ),
               ),
             ),

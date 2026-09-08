@@ -433,7 +433,8 @@ class _OrderRequestDetailScreenState
                                                     Text(
                                                       'Est. Time',
                                                       style: TextStyle(
-                                                        fontSize: AppTypography.font(11),
+                                                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                                        fontWeight: FontWeight.w500,
                                                         color: mutedTextColor,
                                                       ),
                                                     ),
@@ -441,7 +442,7 @@ class _OrderRequestDetailScreenState
                                                     Text(
                                                       '25 - 30 mins',
                                                       style: TextStyle(
-                                                        fontSize: AppTypography.font(13),
+                                                        fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                                                         fontWeight: FontWeight.w700,
                                                         color: purpleColor,
                                                       ),
@@ -474,7 +475,8 @@ class _OrderRequestDetailScreenState
                                                     Text(
                                                       'Total Distance',
                                                       style: TextStyle(
-                                                        fontSize: AppTypography.font(11),
+                                                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                                        fontWeight: FontWeight.w500,
                                                         color: mutedTextColor,
                                                       ),
                                                     ),
@@ -482,7 +484,7 @@ class _OrderRequestDetailScreenState
                                                     Text(
                                                       '${distanceKm.toStringAsFixed(1)} km',
                                                       style: TextStyle(
-                                                        fontSize: AppTypography.font(13),
+                                                        fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                                                         fontWeight: FontWeight.w700,
                                                         color: purpleColor,
                                                       ),
@@ -533,7 +535,7 @@ class _OrderRequestDetailScreenState
                                             Text(
                                               'Pick Up',
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(11),
+                                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
                                                 fontWeight: FontWeight.w600,
                                                 color: purpleColor,
                                               ),
@@ -551,7 +553,8 @@ class _OrderRequestDetailScreenState
                                             Text(
                                               restaurantAddress,
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(12),
+                                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                                fontWeight: FontWeight.w500,
                                                 color: mutedTextColor,
                                               ),
                                             ),
@@ -595,7 +598,7 @@ class _OrderRequestDetailScreenState
                                             Text(
                                               'Drop Off',
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(11),
+                                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
                                                 fontWeight: FontWeight.w600,
                                                 color: purpleColor,
                                               ),
@@ -613,7 +616,8 @@ class _OrderRequestDetailScreenState
                                             Text(
                                               customerAddress,
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(12),
+                                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                                fontWeight: FontWeight.w500,
                                                 color: mutedTextColor,
                                               ),
                                             ),

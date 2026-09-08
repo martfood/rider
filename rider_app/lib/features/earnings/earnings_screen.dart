@@ -339,7 +339,7 @@ class EarningsScreen extends ConsumerWidget {
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.6),
                             fontSize: AppTypography.font(14),
-                            fontWeight: FontWeight.w400,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
@@ -598,8 +598,8 @@ class EarningsScreen extends ConsumerWidget {
                 time,
                 style: TextStyle(
                   color: mutedTextColor,
-                  fontSize: AppTypography.font(11),
-                  fontWeight: FontWeight.w500,
+                  fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -613,7 +613,7 @@ class EarningsScreen extends ConsumerWidget {
               amount,
               style: TextStyle(
                 color: isExpense ? const Color(0xFFE11D48) : primaryTextColor,
-                fontSize: AppTypography.font(14),
+                fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -639,7 +639,7 @@ class EarningsScreen extends ConsumerWidget {
                     type,
                     style: TextStyle(
                       color: iconColor,
-                      fontSize: AppTypography.font(10),
+                      fontSize: AppTypography.font(AppFontSizes.caption),
                       fontWeight: FontWeight.w700,
                     ),
                   ),

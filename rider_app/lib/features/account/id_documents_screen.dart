@@ -150,10 +150,10 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                 ),
               ),
             ),
@@ -732,12 +732,12 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Verification Not Approved',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: AppTypography.font(AppFontSizes.titleMedium),
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFFDC2626),
+                    color: const Color(0xFFDC2626),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -746,7 +746,8 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
                       ? rejectionReason
                       : 'Your documents could not be verified. Please ensure photos are crisp and legible before re-submitting.',
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                    fontWeight: FontWeight.w500,
                     color: const Color(0xFFDC2626).withValues(alpha: 0.90),
                     height: 1.4,
                   ),
@@ -799,12 +800,12 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
               color: const Color(0xFF16A34A).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
+            child: Text(
               'VERIFIED RIDER',
               style: TextStyle(
-                color: Color(0xFF16A34A),
+                color: const Color(0xFF16A34A),
                 fontWeight: FontWeight.w800,
-                fontSize: 12,
+                fontSize: AppTypography.font(AppFontSizes.bodySmall),
                 letterSpacing: 0.5,
               ),
             ),
@@ -909,12 +910,12 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
               color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
+            child: Text(
               'UNDER ADMIN REVIEW',
               style: TextStyle(
-                color: Color(0xFFD97706),
+                color: const Color(0xFFD97706),
                 fontWeight: FontWeight.w800,
-                fontSize: 12,
+                fontSize: AppTypography.font(AppFontSizes.bodySmall),
                 letterSpacing: 0.5,
               ),
             ),
@@ -1008,7 +1009,7 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                   fontWeight: FontWeight.w700,
                   color: primaryTextColor,
                 ),
@@ -1017,7 +1018,8 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
               Text(
                 subtitle,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                  fontWeight: FontWeight.w500,
                   color: mutedTextColor,
                 ),
               ),
@@ -1040,7 +1042,7 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: AppTypography.font(AppFontSizes.bodyMedium),
             color: mutedTextColor,
             fontWeight: FontWeight.w500,
           ),
@@ -1048,7 +1050,7 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
         Text(
           value,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: AppTypography.font(AppFontSizes.bodyMedium),
             color: primaryTextColor,
             fontWeight: FontWeight.w700,
           ),
@@ -1117,7 +1119,7 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
                   color: Colors.black87,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(LucideIcons.check, color: Color(0xFF22C55E), size: 14),
@@ -1126,7 +1128,7 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
                       'Ready to upload',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 11.5,
+                        fontSize: AppTypography.font(AppFontSizes.caption),
                         fontWeight: FontWeight.w600,
                       ),
                     ),

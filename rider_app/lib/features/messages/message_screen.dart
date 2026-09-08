@@ -340,7 +340,7 @@ class _MessageScreenState extends State<MessageScreen> {
                 child: Text(
                   '$badgeCount',
                   style: TextStyle(
-                    fontSize: AppTypography.font(10),
+                    fontSize: AppTypography.font(AppFontSizes.caption),
                     fontWeight: FontWeight.w800,
                     color: isSelected ? purpleColor : Colors.white,
                   ),
@@ -556,7 +556,7 @@ class _MessageScreenState extends State<MessageScreen> {
                                 child: Text(
                                   'Vendor',
                                   style: TextStyle(
-                                    fontSize: AppTypography.font(10),
+                                    fontSize: AppTypography.font(AppFontSizes.caption),
                                     fontWeight: FontWeight.w700,
                                     color: purpleColor,
                                   ),
@@ -573,7 +573,7 @@ class _MessageScreenState extends State<MessageScreen> {
                           style: TextStyle(
                             fontSize: AppTypography.font(AppFontSizes.bodySmall + 1),
                             color: unread > 0 ? primaryTextColor : mutedTextColor,
-                            fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w500,
                           ),
                         ),
                       ],
@@ -589,9 +589,9 @@ class _MessageScreenState extends State<MessageScreen> {
                       Text(
                         formattedTime,
                         style: TextStyle(
-                          fontSize: AppTypography.font(11),
+                          fontSize: AppTypography.font(AppFontSizes.caption),
                           color: unread > 0 ? purpleColor : mutedTextColor,
-                          fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -606,7 +606,7 @@ class _MessageScreenState extends State<MessageScreen> {
                             '$unread',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: AppTypography.font(11),
+                              fontSize: AppTypography.font(AppFontSizes.caption),
                               fontWeight: FontWeight.w800,
                             ),
                           ),

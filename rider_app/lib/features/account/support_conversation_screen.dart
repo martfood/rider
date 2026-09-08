@@ -251,7 +251,7 @@ class _SupportConversationScreenState
                     Text(
                       isResolved ? 'Resolved Ticket' : 'Active Support Ticket',
                       style: TextStyle(
-                        fontSize: AppTypography.font(11),
+                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
                         fontWeight: FontWeight.w600,
                         color: isResolved ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
                       ),
@@ -441,7 +441,7 @@ class _SupportConversationScreenState
                                           child: Text(
                                             timeStr,
                                             style: TextStyle(
-                                              fontSize: AppTypography.font(10),
+                                              fontSize: AppTypography.font(AppFontSizes.caption),
                                               color: mutedTextColor,
                                               fontWeight: FontWeight.w500,
                                             ),

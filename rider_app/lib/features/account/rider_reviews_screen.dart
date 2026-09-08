@@ -419,9 +419,9 @@ class _ReviewItem extends StatelessWidget {
                     Text(
                       review.date,
                       style: TextStyle(
-                        fontSize: AppTypography.font(11),
+                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
                         color: mutedTextColor,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -484,7 +484,7 @@ class _ReviewItem extends StatelessWidget {
                   child: Text(
                     'Order: ${review.orderSummary}',
                     style: TextStyle(
-                      fontSize: AppTypography.font(11),
+                      fontSize: AppTypography.font(AppFontSizes.bodySmall),
                       color: mutedTextColor,
                       fontWeight: FontWeight.w600,
                     ),

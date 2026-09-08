@@ -127,7 +127,8 @@ Future<void> showOrderAcceptedSuccessSheet({
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: AppTypography.font(11),
+                              fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                              fontWeight: FontWeight.w500,
                               color: mutedTextColor,
                             ),
                           ),

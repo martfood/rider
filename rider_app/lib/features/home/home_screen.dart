@@ -219,7 +219,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           Text(
                             'Reason: ${profile.suspensionReason.isNotEmpty ? profile.suspensionReason : 'Fleet Operational Audit'}. Order dispatch and online availability are disabled.',
                             style: TextStyle(
-                              fontSize: AppTypography.font(12),
+                              fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                              fontWeight: FontWeight.w500,
                               color: isDark ? Colors.red[200] : Colors.red[900],
                             ),
                           ),
@@ -281,9 +282,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                             Text(
                               online ? 'Ready to Deliver ?' : 'You are currently offline',
                               style: TextStyle(
-                                fontSize: AppTypography.font(13),
+                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
                                 color: mutedTextColor,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -351,9 +352,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                                     child: Center(
                                       child: Text(
                                         unreadCount > 99 ? '99+' : '$unreadCount',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 10,
+                                          fontSize: AppTypography.font(AppFontSizes.caption),
                                           fontWeight: FontWeight.w800,
                                           height: 1.1,
                                         ),
@@ -391,9 +392,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           Text(
                             'Current Balance',
                             style: TextStyle(
-                              fontSize: AppTypography.font(12),
+                              fontSize: AppTypography.font(AppFontSizes.bodySmall),
                               color: Colors.white.withValues(alpha: 0.8),
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -508,9 +509,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               Text(
                                 'Deliveries',
                                 style: TextStyle(
-                                  fontSize: AppTypography.font(12),
+                                  fontSize: AppTypography.font(AppFontSizes.bodySmall),
                                   color: mutedTextColor,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -557,9 +558,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               Text(
                                 'Acceptance Rate',
                                 style: TextStyle(
-                                  fontSize: AppTypography.font(12),
+                                  fontSize: AppTypography.font(AppFontSizes.bodySmall),
                                   color: mutedTextColor,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -728,7 +729,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             'New delivery requests will appear here when restaurants nearby broadcast orders.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: AppTypography.font(12),
+              fontSize: AppTypography.font(AppFontSizes.bodySmall),
+              fontWeight: FontWeight.w500,
               color: mutedTextColor,
             ),
           ),
@@ -839,7 +841,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: AppTypography.font(12),
+                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                fontWeight: FontWeight.w500,
                                 color: mutedTextColor,
                               ),
                             ),
@@ -880,7 +883,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       Text(
                         'Pick Up',
                         style: TextStyle(
-                          fontSize: AppTypography.font(11),
+                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
                           color: mutedTextColor,
                           fontWeight: FontWeight.w600,
                         ),
@@ -891,7 +894,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: AppTypography.font(14),
+                          fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                           fontWeight: FontWeight.w700,
                           color: primaryTextColor,
                         ),
@@ -902,7 +905,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       Text(
                         'Drop Off',
                         style: TextStyle(
-                          fontSize: AppTypography.font(11),
+                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
                           color: mutedTextColor,
                           fontWeight: FontWeight.w600,
                         ),
@@ -913,7 +916,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: AppTypography.font(14),
+                          fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                           fontWeight: FontWeight.w700,
                           color: primaryTextColor,
                         ),
@@ -963,7 +966,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   Text(
                     'Estimated earnings',
                     style: TextStyle(
-                      fontSize: AppTypography.font(11),
+                      fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                      fontWeight: FontWeight.w500,
                       color: mutedTextColor,
                     ),
                   ),
@@ -1231,9 +1235,9 @@ class _VendorDistanceText extends StatelessWidget {
     return Text(
       '${km.toStringAsFixed(1)} km',
       style: TextStyle(
-        fontSize: AppTypography.font(12),
+        fontSize: AppTypography.font(AppFontSizes.bodySmall),
         color: textColor,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
@@ -1242,9 +1246,9 @@ class _VendorDistanceText extends StatelessWidget {
     return Text(
       '-- km',
       style: TextStyle(
-        fontSize: AppTypography.font(12),
+        fontSize: AppTypography.font(AppFontSizes.bodySmall),
         color: textColor,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w600,
       ),
     );
   }

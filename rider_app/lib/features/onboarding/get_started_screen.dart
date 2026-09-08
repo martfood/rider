@@ -86,8 +86,8 @@ class GetStartedScreen extends StatelessWidget {
                                 Text(
                                   'Join thousands of riders delivering food and everyday essentials across your city. Choose when you work, earn on every delivery, and get paid with ease.',
                                   style: TextStyle(
-                                    fontSize: AppTypography.font(15),
-                                    fontWeight: FontWeight.w400,
+                                    fontSize: AppTypography.font(AppFontSizes.bodyMedium),
+                                    fontWeight: FontWeight.w500,
                                     color: subtitleColor,
                                     height: 1.45,
                                   ),

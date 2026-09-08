@@ -400,7 +400,7 @@ class _IncomingOrderRequestScreenState
                     Text(
                       'Pick Up',
                       style: TextStyle(
-                        fontSize: AppTypography.font(11),
+                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
                         color: mutedTextColor,
                         fontWeight: FontWeight.w600,
                       ),
@@ -411,7 +411,7 @@ class _IncomingOrderRequestScreenState
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: AppTypography.font(14),
+                        fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                         fontWeight: FontWeight.w700,
                         color: primaryTextColor,
                       ),
@@ -420,7 +420,7 @@ class _IncomingOrderRequestScreenState
                     Text(
                       'Drop-Off',
                       style: TextStyle(
-                        fontSize: AppTypography.font(11),
+                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
                         color: mutedTextColor,
                         fontWeight: FontWeight.w600,
                       ),
@@ -431,7 +431,7 @@ class _IncomingOrderRequestScreenState
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: AppTypography.font(14),
+                        fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                         fontWeight: FontWeight.w700,
                         color: primaryTextColor,
                       ),
@@ -481,8 +481,9 @@ class _IncomingOrderRequestScreenState
                 Text(
                   'Estimated earnings',
                   style: TextStyle(
-                    fontSize: AppTypography.font(11),
+                    fontSize: AppTypography.font(AppFontSizes.bodySmall),
                     color: mutedTextColor,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],

@@ -645,7 +645,7 @@ class _BankDetailsWizardScreenState
                             'ACCOUNT HOLDER',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: AppTypography.font(10),
+                              fontSize: AppTypography.font(AppFontSizes.caption),
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.6,
                             ),

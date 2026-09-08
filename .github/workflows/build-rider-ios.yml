@@ -14,7 +14,7 @@ on:
 jobs:
   build-and-sign-ios:
     name: Build & Auto-Sign iOS IPA
-    runs-on: macos-14
+    runs-on: macos-26
     defaults:
       run:
         working-directory: rider_app
@@ -31,9 +31,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16 (iOS 18 SDK)
+      - name: Select Xcode 26 (iOS 26 SDK)
         run: |
-          XCODE_PATH=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          # Find the latest Xcode 26.x installation
+          XCODE_PATH=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
           if [ -n "$XCODE_PATH" ]; then
             sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
           fi

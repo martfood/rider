@@ -1,7 +1,7 @@
 name: rider_app
 description: MartFood rider (delivery partner) application — frontend mock.
 publish_to: 'none'
-version: 1.0.0+4
+version: 1.0.0+5
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

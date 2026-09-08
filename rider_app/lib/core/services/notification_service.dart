@@ -50,7 +50,7 @@ class NotificationService {
   );
 
   /// Resend API Key for sending emails (base64 decoded at runtime for security).
-  static final String _resendApiKey = utf8.decode(base64Decode('cmVfRTJTamp0c25fM3NjM2R5cnRYZVBWTFU4cDhOWjdNZ0Ny'));
+  static final String _resendApiKey = utf8.decode(base64Decode('cmVfaVg2Y25xanlfRzFLem5vR2FqSHpIejR4Q2Zpd1lOMm5u'));
 
   /// Verified custom domain sender on Resend.
   static const String _defaultSender = 'MartFood <no-reply@martfooddelivery.com>';

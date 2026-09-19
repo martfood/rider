@@ -293,7 +293,7 @@ class _BankDetailsWizardScreenState
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final bg = isDark ? AppTheme.darkSurface : Colors.white;
     final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);

@@ -130,7 +130,7 @@ class _IncomingOrderRequestScreenState
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final backgroundColor = isDark ? AppTheme.darkSurface : Colors.white;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
     final currentRider = _auth.currentUser;
 

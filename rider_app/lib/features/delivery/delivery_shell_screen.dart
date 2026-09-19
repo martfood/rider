@@ -35,7 +35,7 @@ class _DeliveryShellScreenState extends ConsumerState<DeliveryShellScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final bg = isDark ? AppTheme.darkSurface : Colors.white;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
     final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
 

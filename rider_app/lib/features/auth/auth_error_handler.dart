@@ -51,18 +51,23 @@ class AuthErrorHandler {
       return 'No internet access. Please verify you have an active data plan or working Wi-Fi connection.';
     }
 
-    // Default error string parsing/fallback
     final errorString = error.toString().toLowerCase();
-    if (errorString.contains('socketexception') || 
-        errorString.contains('network') || 
-        errorString.contains('failed host lookup') || 
-        errorString.contains('timeout') || 
-        errorString.contains('timed out') || 
-        errorString.contains('connection refused')) {
-      return 'No internet access. Please verify you have an active data plan or working Wi-Fi connection.';
+
+    // Google Sign-In / PlatformException mapping
+    if (errorString.contains('sign_in_failed') ||
+        errorString.contains('api.j: 10') ||
+        errorString.contains('apiexception: 10') ||
+        errorString.contains('api.j: 8') ||
+        errorString.contains('apiexception: 8')) {
+      return 'Google Sign-In configuration mismatch (SHA-1 missing in Firebase). Please verify Play Store signing key or sign in with email.';
     }
 
-    return error.toString().replaceAll('Exception:', '').trim();
+    if (errorString.contains('sign_in_canceled') ||
+        errorString.contains('sign_in_cancelled')) {
+      return 'Google Sign-In was cancelled.';
+    }
+
+    return error.toString().replaceAll('Exception:', '').replaceAll('PlatformException', '').trim();
   }
 
   /// Displays the error in a styled modern Floating SnackBar with appropriate icons.

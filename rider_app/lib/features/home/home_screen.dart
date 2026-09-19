@@ -171,7 +171,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final profile = ref.watch(riderProfileProvider);
     final online = ref.watch(riderAvailabilityProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final bg = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : Colors.black87;
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
     final purpleColor = AppTheme.primaryPurpleFor(isDark);

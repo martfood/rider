@@ -439,7 +439,7 @@ class _SupportChatScreenState extends ConsumerState<SupportChatScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
     final backgroundColor =
-        isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+        isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
     final cardBg = isDark ? AppTheme.darkSurface : Colors.white;

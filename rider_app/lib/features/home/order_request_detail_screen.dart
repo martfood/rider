@@ -174,7 +174,7 @@ class _OrderRequestDetailScreenState
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF1E1E2D);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF718096);
-    final bgColor = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final bgColor = isDark ? AppTheme.darkSurface : Colors.white;
     final cardBg = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
     final currentUid = _auth.currentUser?.uid ?? '';

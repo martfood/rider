@@ -97,8 +97,7 @@ class _HelpCenterRiderScreenState extends State<HelpCenterRiderScreen>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
-    final backgroundColor =
-        isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final backgroundColor = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : Colors.black;
 
     return Scaffold(

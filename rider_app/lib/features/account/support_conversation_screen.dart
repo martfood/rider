@@ -196,7 +196,7 @@ class _SupportConversationScreenState
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
-    final backgroundColor = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final backgroundColor = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : Colors.black;
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
     final cardBg = isDark ? AppTheme.darkSurface : Colors.white;

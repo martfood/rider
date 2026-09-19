@@ -27,7 +27,7 @@ MartFood maintains zero tolerance for harassment, theft, unauthorized order tamp
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
     final backgroundColor =
-        isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+        isDark ? AppTheme.darkSurface : Colors.white;
     final cardBg = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? AppTheme.darkBorder : const Color(0xFFF0E6FF);
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);

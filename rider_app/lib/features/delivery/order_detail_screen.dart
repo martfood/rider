@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
+import 'package:shared_widgets/widgets/section_divider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/notification_service.dart';
@@ -415,7 +416,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF1E1E2D);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
-    final bgColor = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final bgColor = isDark ? AppTheme.darkSurface : Colors.white;
     final cardBg = isDark ? AppTheme.darkSurface : Colors.white;
     final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
 
@@ -668,7 +669,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SectionDivider(
+                        margin: EdgeInsets.only(left: -18, right: -18, top: 16, bottom: 16),
+                      ),
 
                       // ── CARD 2: Pick Up & Drop Off Route ─────────────────────────
                       Container(
@@ -859,7 +862,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SectionDivider(
+                        margin: EdgeInsets.only(left: -18, right: -18, top: 16, bottom: 16),
+                      ),
 
                       // ── CARD 3: Order Items & Subtotal ───────────────────────────
                       Container(

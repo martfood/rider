@@ -15,11 +15,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "45361321160-fj2aqg7du44f5552g1bq244vep1s7ggp.apps.googleusercontent.com",
+          "client_id": "45361321160-bqou3v050gv5jbbvgdsn88bh68gn1kid.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.martfood.app",
-            "certificate_hash": "db7beab73820599e7122ef502733fe7f35dcb55a"
+            "certificate_hash": "3ca30915b31099d920a8234c632873d5e667fe6a"
           }
         },
         {
@@ -40,10 +40,10 @@
               "client_type": 3
             },
             {
-              "client_id": "45361321160-isflqc9c0lblgdane16vqhj26st7amo3.apps.googleusercontent.com",
+              "client_id": "45361321160-7gru3av7qtu11b177mu2ign5q12kg39r.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.martfood.app"
+                "bundle_id": "com.martfood.rider"
               }
             }
           ]
@@ -59,11 +59,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "45361321160-cnhvbenf6t338i6puldc3up8faasph1a.apps.googleusercontent.com",
+          "client_id": "45361321160-1r5ssir4li1q739ahd18dk8arsh3bgq5.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.martfood.rider",
-            "certificate_hash": "670140b4fb26e9a7eb67d92eeb182929e3f29d33"
+            "certificate_hash": "9fc4a85c2dfec3145547028137b9b35526076316"
           }
         },
         {
@@ -84,10 +84,10 @@
               "client_type": 3
             },
             {
-              "client_id": "45361321160-isflqc9c0lblgdane16vqhj26st7amo3.apps.googleusercontent.com",
+              "client_id": "45361321160-7gru3av7qtu11b177mu2ign5q12kg39r.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.martfood.app"
+                "bundle_id": "com.martfood.rider"
               }
             }
           ]

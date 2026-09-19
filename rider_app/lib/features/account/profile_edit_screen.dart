@@ -255,7 +255,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
     final backgroundColor =
-        isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+        isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : Colors.black;
     final fieldBg = isDark ? const Color(0xFF27272A) : const Color(0xFFF7F8FC);
     final fieldBorder =

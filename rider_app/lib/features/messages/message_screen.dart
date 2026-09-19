@@ -57,7 +57,7 @@ class _MessageScreenState extends State<MessageScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final backgroundColor = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : Colors.black87;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
     final currentUser = _auth.currentUser;

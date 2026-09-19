@@ -320,7 +320,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+    final backgroundColor = isDark ? AppTheme.darkSurface : Colors.white;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
     final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
     final currentUser = _auth.currentUser;

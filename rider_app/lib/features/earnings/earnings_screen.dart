@@ -417,21 +417,39 @@ class EarningsScreen extends ConsumerWidget {
                 final tx = sortedDocs[index].data() as Map<String, dynamic>;
                 final amountVal = (tx['amount'] as num?) ?? 0;
                 final isExpense = tx['isExpense'] as bool? ?? false;
-                final typeStr = (tx['type'] ?? (isExpense ? 'Payout' : 'Delivery')).toString();
-                final title = (tx['title'] ?? 'Earnings Credit').toString();
+                final typeStr = (tx['type'] ?? (isExpense ? 'Deduction' : 'Delivery')).toString();
+                final title = (tx['title'] ?? (isExpense ? 'Wallet Deduction' : 'Earnings Credit')).toString();
+                final description = (tx['description'] ?? '').toString();
                 final timeStr = _formatTimestamp(tx['createdAt'] ?? tx['timestamp']);
+
+                IconData icon;
+                Color iconColor;
+                if (isExpense) {
+                  icon = typeStr.toLowerCase().contains('deduct')
+                      ? LucideIcons.minusCircle
+                      : LucideIcons.wallet;
+                  iconColor = const Color(0xFFE11D48);
+                } else {
+                  if (typeStr.toLowerCase().contains('top up') ||
+                      title.toLowerCase().contains('top-up')) {
+                    icon = LucideIcons.plusCircle;
+                    iconColor = const Color(0xFF16A34A);
+                  } else {
+                    icon = LucideIcons.packageCheck;
+                    iconColor = const Color(0xFF16A34A);
+                  }
+                }
 
                 return _buildTransactionRow(
                   context: context,
                   title: title,
+                  description: description,
                   time: timeStr,
                   amount: '${isExpense ? '-' : '+'}₦${_formatCurrency(amountVal)}',
                   type: typeStr,
                   isExpense: isExpense,
-                  icon: isExpense ? LucideIcons.wallet : LucideIcons.packageCheck,
-                  iconColor: isExpense
-                      ? const Color(0xFFE11D48)
-                      : const Color(0xFF16A34A),
+                  icon: icon,
+                  iconColor: iconColor,
                   purpleColor: purpleColor,
                 );
               },
@@ -548,6 +566,7 @@ class EarningsScreen extends ConsumerWidget {
   Widget _buildTransactionRow({
     required BuildContext context,
     required String title,
+    String? description,
     required String time,
     required String amount,
     required String type,
@@ -593,12 +612,25 @@ class EarningsScreen extends ConsumerWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (description != null && description.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
+                    fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
               const SizedBox(height: 4),
               Text(
                 time,
                 style: TextStyle(
                   color: mutedTextColor,
-                  fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                  fontSize: AppTypography.font(AppFontSizes.caption),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -612,7 +644,9 @@ class EarningsScreen extends ConsumerWidget {
             Text(
               amount,
               style: TextStyle(
-                color: isExpense ? const Color(0xFFE11D48) : primaryTextColor,
+                color: isExpense
+                    ? (isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48))
+                    : (isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A)),
                 fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                 fontWeight: FontWeight.w800,
               ),

@@ -1,16 +1,11 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
 import 'auth_error_handler.dart';
@@ -46,14 +41,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _usernameController.dispose();
     _phoneController.dispose();
     super.dispose();
-  }
-
-  Future<void> _saveGoogleAccount(User user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('last_google_name', user.displayName ?? 'Google User');
-    await prefs.setString('last_google_email', user.email ?? '');
-    await prefs.setString('last_google_photo', user.photoURL ?? '');
-    await prefs.setBool('has_previous_google_login', true);
   }
 
   Future<void> _pickImage() async {
@@ -153,68 +140,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'vehicleType': _vehicleType,
         'photoPath': _imageFile?.path,
       });
-    }
-  }
-
-  Future<void> _signUpWithGoogle() async {
-    setState(() => _isLoading = true);
-    try {
-      final googleSignIn = GoogleSignIn(
-        serverClientId: '45361321160-9ofs6jkpgbk539bjl5bdro0fnknhavtl.apps.googleusercontent.com',
-      );
-
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-      final user = userCredential.user;
-
-      if (user != null) {
-        await _saveGoogleAccount(user);
-        final docRef = FirebaseFirestore.instance.collection('riders').doc(user.uid);
-        final docSnap = await docRef.get();
-
-        if (!docSnap.exists) {
-          await docRef.set({
-            'uid': user.uid,
-            'email': user.email ?? '',
-            'fullName': user.displayName ?? '',
-            'username': (user.email ?? '').split('@').first,
-            'phone': user.phoneNumber ?? '',
-            'vehicleType': 'Bicycle',
-            'photoUrl': user.photoURL ?? '',
-            'walletBalance': 0.0,
-            'verificationStatus': 'unverified',
-            'rejectionReason': '',
-            'completedOrders': 0,
-            'status': 'offline',
-            'isOnline': false,
-            'currentLocation': const GeoPoint(6.5244, 3.3792),
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-        }
-
-        if (mounted) {
-          context.go('/home');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        AuthErrorHandler.showError(context, e);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
     }
   }
 
@@ -636,81 +561,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  if (defaultTargetPlatform != TargetPlatform.iOS) ...[
-                    // ── 12. Or Divider ──────────────────────────────────────
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Divider(
-                            color: isDark ? AppTheme.darkBorder : Colors.grey[300],
-                            thickness: 1,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Text(
-                            'Or',
-                            style: TextStyle(
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                              fontSize: AppTypography.font(14),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Divider(
-                            color: isDark ? AppTheme.darkBorder : Colors.grey[300],
-                            thickness: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── 13. Social Sign Up Button ───────────────────────────
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: OutlinedButton(
-                        onPressed: _signUpWithGoogle,
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: isDark ? AppTheme.darkBorder : AppTheme.lightPurpleBorder,
-                            width: 1.2,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.network(
-                              'https://pngimg.com/uploads/google/google_PNG19635.png',
-                              height: 22,
-                              errorBuilder: (context, error, stackTrace) => const Icon(
-                                Icons.g_mobiledata,
-                                size: 24,
-                                color: Colors.redAccent,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Sign up with Google',
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: AppTypography.font(15),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
 
                   const SizedBox(height: 24),
                 ],

@@ -15,6 +15,7 @@ import '../../providers/rider_profile_provider.dart';
 import '../../core/services/app_update_service.dart';
 import '../../core/services/rider_location_service.dart';
 import 'order_acceptance_success_sheet.dart';
+import 'rider_current_location_map_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -599,9 +600,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     ),
                   ),
 
+                  const SizedBox(height: 18),
+
+                  // ── 5. Live Location Pinpoint Map ─────────────────────────────
+                  RiderCurrentLocationMapCard(
+                    riderLocation: profile.currentLocation,
+                    isOnline: online,
+                  ),
+
                   const SizedBox(height: 24),
 
-                  // ── 5. Available Orders Section Header ─────────────────────────
+                  // ── 6. Available Orders Section Header ─────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

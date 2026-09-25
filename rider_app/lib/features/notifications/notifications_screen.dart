@@ -53,9 +53,7 @@ class NotificationsScreen extends StatelessWidget {
       return {
         'icon': Icons.cancel_outlined,
         'iconColor': isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
-        'bgColor': isDark
-            ? const Color(0xFF450A0A)
-            : const Color(0xFFFEF2F2),
+        'bgColor': isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
       };
     } else if (lowerTitle.contains('payout') ||
         lowerBody.contains('payout') ||
@@ -67,9 +65,7 @@ class NotificationsScreen extends StatelessWidget {
       return {
         'icon': LucideIcons.wallet,
         'iconColor': isDark ? const Color(0xFF6EE7B7) : const Color(0xFF059669),
-        'bgColor': isDark
-            ? const Color(0xFF064E3B)
-            : const Color(0xFFECFDF5),
+        'bgColor': isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
       };
     } else if (lowerTitle.contains('verified') ||
         lowerTitle.contains('approved') ||
@@ -80,9 +76,7 @@ class NotificationsScreen extends StatelessWidget {
       return {
         'icon': LucideIcons.circleCheck,
         'iconColor': isDark ? const Color(0xFF6EE7B7) : const Color(0xFF10B981),
-        'bgColor': isDark
-            ? const Color(0xFF064E3B)
-            : const Color(0xFFE8F5E9),
+        'bgColor': isDark ? const Color(0xFF064E3B) : const Color(0xFFE8F5E9),
       };
     } else if (lowerTitle.contains('order') ||
         lowerTitle.contains('matched') ||
@@ -93,9 +87,7 @@ class NotificationsScreen extends StatelessWidget {
       return {
         'icon': LucideIcons.package,
         'iconColor': isDark ? const Color(0xFFC084FC) : const Color(0xFF7C3AED),
-        'bgColor': isDark
-            ? const Color(0xFF3B0764)
-            : const Color(0xFFF3E8FF),
+        'bgColor': isDark ? const Color(0xFF3B0764) : const Color(0xFFF3E8FF),
       };
     } else if (lowerTitle.contains('support') ||
         lowerTitle.contains('message') ||
@@ -103,9 +95,7 @@ class NotificationsScreen extends StatelessWidget {
       return {
         'icon': LucideIcons.headphones,
         'iconColor': isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB),
-        'bgColor': isDark
-            ? const Color(0xFF172554)
-            : const Color(0xFFEFF6FF),
+        'bgColor': isDark ? const Color(0xFF172554) : const Color(0xFFEFF6FF),
       };
     } else if (lowerTitle.contains('security') ||
         lowerTitle.contains('pin') ||
@@ -114,23 +104,19 @@ class NotificationsScreen extends StatelessWidget {
       return {
         'icon': LucideIcons.shieldCheck,
         'iconColor': isDark ? const Color(0xFFFDBA74) : const Color(0xFFEA580C),
-        'bgColor': isDark
-            ? const Color(0xFF451A03)
-            : const Color(0xFFFFF7ED),
+        'bgColor': isDark ? const Color(0xFF451A03) : const Color(0xFFFFF7ED),
       };
     }
 
     return {
       'icon': LucideIcons.bell,
       'iconColor': isDark ? const Color(0xFFC084FC) : const Color(0xFF6D28D9),
-      'bgColor': isDark
-          ? const Color(0xFF3B0764)
-          : const Color(0xFFF3E8FF),
+      'bgColor': isDark ? const Color(0xFF3B0764) : const Color(0xFFF3E8FF),
     };
   }
 
-  Future<void> _handleNotificationTap(
-      BuildContext context, String uid, String notificationId, Map<String, dynamic> data) async {
+  Future<void> _handleNotificationTap(BuildContext context, String uid,
+      String notificationId, Map<String, dynamic> data) async {
     NotificationService.markRiderNotificationAsRead(uid, notificationId);
 
     final orderId = (data['orderId'] ?? '').toString();
@@ -139,7 +125,10 @@ class NotificationsScreen extends StatelessWidget {
     if (orderId.isNotEmpty) {
       if (type == 'order_broadcast') {
         try {
-          final snap = await FirebaseFirestore.instance.collection('orders').doc(orderId).get();
+          final snap = await FirebaseFirestore.instance
+              .collection('orders')
+              .doc(orderId)
+              .get();
           if (snap.exists && context.mounted) {
             final orderData = snap.data() ?? {};
             final assignedRiderId = (orderData['riderId'] ?? '').toString();
@@ -168,12 +157,12 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
-    final backgroundColor =
-        isDark ? AppTheme.darkSurface : Colors.white;
+    final backgroundColor = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : Colors.black;
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
     final cardBg = isDark ? AppTheme.darkSurface : Colors.white;
-    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+    final borderColor =
+        isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -199,7 +188,8 @@ class NotificationsScreen extends StatelessWidget {
           .collection('notifications')
           .snapshots(),
       builder: (context, snapshot) {
-        final docs = List<QueryDocumentSnapshot>.from(snapshot.data?.docs ?? []);
+        final docs =
+            List<QueryDocumentSnapshot>.from(snapshot.data?.docs ?? []);
         docs.sort((a, b) {
           final aData = a.data() as Map<String, dynamic>?;
           final bData = b.data() as Map<String, dynamic>?;
@@ -253,7 +243,8 @@ class NotificationsScreen extends StatelessWidget {
               if (hasUnread)
                 TextButton(
                   onPressed: () =>
-                      NotificationService.markAllRiderNotificationsAsRead(user.uid),
+                      NotificationService.markAllRiderNotificationsAsRead(
+                          user.uid),
                   child: Text(
                     'Mark all read',
                     style: TextStyle(
@@ -308,7 +299,8 @@ class NotificationsScreen extends StatelessWidget {
                                 'When you receive order broadcasts, delivery updates, or payout alerts, they will appear here.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: AppTypography.font(13),
+                                  fontSize: AppTypography.font(
+                                      AppFontSizes.bodySmall),
                                   color: mutedTextColor,
                                   height: 1.4,
                                 ),
@@ -323,10 +315,12 @@ class NotificationsScreen extends StatelessWidget {
                         itemBuilder: (context, index) {
                           final doc = docs[index];
                           final data = doc.data() as Map<String, dynamic>;
-                          final title = (data['title'] ?? 'Notification').toString();
+                          final title =
+                              (data['title'] ?? 'Notification').toString();
                           final body = (data['body'] ?? '').toString();
                           final isUnread = (data['read'] as bool?) == false;
-                          final extraData = (data['data'] as Map<String, dynamic>?) ?? {};
+                          final extraData =
+                              (data['data'] as Map<String, dynamic>?) ?? {};
                           final timeStr = _formatTimestamp(data['createdAt']);
 
                           final style = _getNotificationStyle(
@@ -424,8 +418,8 @@ class NotificationsScreen extends StatelessWidget {
                                                       timeStr,
                                                       style: TextStyle(
                                                         fontSize:
-                                                            AppTypography
-                                                                .font(11),
+                                                            AppTypography.font(
+                                                                11),
                                                         color: mutedTextColor,
                                                         fontWeight:
                                                             FontWeight.w500,
@@ -440,8 +434,11 @@ class NotificationsScreen extends StatelessWidget {
                                                     style: TextStyle(
                                                       fontSize:
                                                           AppTypography.font(
-                                                              13),
+                                                              AppFontSizes
+                                                                  .caption),
                                                       color: mutedTextColor,
+                                                      fontWeight:
+                                                          FontWeight.w300,
                                                       height: 1.35,
                                                     ),
                                                   ),
@@ -454,8 +451,8 @@ class NotificationsScreen extends StatelessWidget {
                                             Container(
                                               width: 8,
                                               height: 8,
-                                              margin: const EdgeInsets.only(
-                                                  top: 6),
+                                              margin:
+                                                  const EdgeInsets.only(top: 6),
                                               decoration: BoxDecoration(
                                                 color: purpleColor,
                                                 shape: BoxShape.circle,

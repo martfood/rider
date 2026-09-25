@@ -5,9 +5,17 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
-/// Full Transaction History screen for Rider App showing all earnings and payouts.
-class TransactionHistoryScreen extends StatelessWidget {
+/// Full Transaction History screen for Rider App showing all earnings, admin adjustments, and payouts.
+class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
+
+  @override
+  State<TransactionHistoryScreen> createState() =>
+      _TransactionHistoryScreenState();
+}
+
+class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
+  int _selectedFilterIndex = 0; // 0: All, 1: Deliveries, 2: Adjustments
 
   String _formatTimestamp(dynamic createdAt) {
     if (createdAt == null) return 'Just now';
@@ -108,6 +116,23 @@ class TransactionHistoryScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Filter Segment Bar ────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkBorder.withValues(alpha: 0.3) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildFilterButton(0, 'All', purpleColor, isDark),
+                        _buildFilterButton(1, 'Deliveries', purpleColor, isDark),
+                        _buildFilterButton(2, 'Adjustments', purpleColor, isDark),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
 
                   // ── Realtime Transaction Stream ────────────────────────────
                   Container(
@@ -141,33 +166,81 @@ class TransactionHistoryScreen extends StatelessWidget {
                             return bDt.compareTo(aDt);
                           });
 
+                          // Filter records based on selected tab
+                          final filteredDocs = sortedDocs.where((docSnap) {
+                            if (_selectedFilterIndex == 0) return true;
+                            final d = docSnap.data() as Map<String, dynamic>;
+                            final type = (d['type'] ?? '').toString().toLowerCase();
+                            final isExpense = d['isExpense'] as bool? ?? false;
+                            final source = (d['source'] ?? '').toString().toLowerCase();
+
+                            if (_selectedFilterIndex == 1) {
+                              // Deliveries
+                              return !isExpense && type.contains('delivery') && source != 'admin';
+                            } else {
+                              // Adjustments & Payouts
+                              return type.contains('top up') ||
+                                  type.contains('deduct') ||
+                                  type.contains('payout') ||
+                                  source == 'admin';
+                            }
+                          }).toList();
+
+                          if (filteredDocs.isEmpty) {
+                            return _buildEmptyState(
+                              purpleColor: purpleColor,
+                              primaryTextColor: primaryTextColor,
+                              mutedTextColor: mutedTextColor,
+                              title: 'No matching transactions',
+                              subtitle: 'No records found for the selected filter category.',
+                            );
+                          }
+
                           return ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: sortedDocs.length,
+                            itemCount: filteredDocs.length,
                             separatorBuilder: (context, index) => Divider(
                               color: isDark ? AppTheme.darkBorder : const Color(0xFFEFF1F6),
                               height: 22,
                             ),
                             itemBuilder: (context, index) {
-                              final tx = sortedDocs[index].data() as Map<String, dynamic>;
+                              final tx = filteredDocs[index].data() as Map<String, dynamic>;
                               final amountVal = (tx['amount'] as num?) ?? 0;
                               final isExpense = tx['isExpense'] as bool? ?? false;
-                              final typeStr = (tx['type'] ?? (isExpense ? 'Payout' : 'Delivery')).toString();
-                              final title = (tx['title'] ?? 'Earnings Credit').toString();
+                              final typeStr = (tx['type'] ?? (isExpense ? 'Deduction' : 'Delivery')).toString();
+                              final title = (tx['title'] ?? (isExpense ? 'Wallet Deduction' : 'Earnings Credit')).toString();
+                              final description = (tx['description'] ?? '').toString();
                               final timeStr = _formatTimestamp(tx['createdAt'] ?? tx['timestamp']);
+
+                              IconData icon;
+                              Color iconColor;
+                              if (isExpense) {
+                                icon = typeStr.toLowerCase().contains('deduct')
+                                    ? LucideIcons.minusCircle
+                                    : LucideIcons.wallet;
+                                iconColor = const Color(0xFFE11D48);
+                              } else {
+                                if (typeStr.toLowerCase().contains('top up') ||
+                                    title.toLowerCase().contains('top-up')) {
+                                  icon = LucideIcons.plusCircle;
+                                  iconColor = const Color(0xFF16A34A);
+                                } else {
+                                  icon = LucideIcons.packageCheck;
+                                  iconColor = const Color(0xFF16A34A);
+                                }
+                              }
 
                               return _buildTransactionRow(
                                 context: context,
                                 title: title,
+                                description: description,
                                 time: timeStr,
                                 amount: '${isExpense ? '-' : '+'}₦${_formatCurrency(amountVal)}',
                                 type: typeStr,
                                 isExpense: isExpense,
-                                icon: isExpense ? LucideIcons.wallet : LucideIcons.packageCheck,
-                                iconColor: isExpense
-                                    ? const Color(0xFFE11D48)
-                                    : const Color(0xFF16A34A),
+                                icon: icon,
+                                iconColor: iconColor,
                                 purpleColor: purpleColor,
                               );
                             },
@@ -185,87 +258,39 @@ class TransactionHistoryScreen extends StatelessWidget {
                             final orderDocs = ordersSnapshot.data?.docs ?? [];
 
                             if (orderDocs.isEmpty) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 36, horizontal: 12),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: 58,
-                                      height: 58,
-                                      decoration: BoxDecoration(
-                                        color: purpleColor.withValues(alpha: 0.12),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          LucideIcons.receipt,
-                                          color: purpleColor,
-                                          size: 26,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Text(
-                                      'No transactions yet',
-                                      style: TextStyle(
-                                        color: primaryTextColor,
-                                        fontSize: AppTypography.font(15),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'Your delivery earnings and payout records will appear here as soon as transactions are processed.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: mutedTextColor,
-                                        fontSize: AppTypography.font(12),
-                                        fontWeight: FontWeight.w500,
-                                        height: 1.35,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                              return _buildEmptyState(
+                                purpleColor: purpleColor,
+                                primaryTextColor: primaryTextColor,
+                                mutedTextColor: mutedTextColor,
+                                title: 'No transactions yet',
+                                subtitle: 'Your delivery earnings, admin adjustments, and payout records will appear here.',
                               );
                             }
-
-                            final sortedOrders = List<QueryDocumentSnapshot>.from(orderDocs);
-                            sortedOrders.sort((a, b) {
-                              final aData = a.data() as Map<String, dynamic>?;
-                              final bData = b.data() as Map<String, dynamic>?;
-                              dynamic aTime = aData?['deliveredAt'] ?? aData?['createdAt'];
-                              dynamic bTime = bData?['deliveredAt'] ?? bData?['createdAt'];
-                              DateTime aDt = DateTime.fromMillisecondsSinceEpoch(0);
-                              DateTime bDt = DateTime.fromMillisecondsSinceEpoch(0);
-                              if (aTime is Timestamp) aDt = aTime.toDate();
-                              if (bTime is Timestamp) bDt = bTime.toDate();
-                              return bDt.compareTo(aDt);
-                            });
 
                             return ListView.separated(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              itemCount: sortedOrders.length,
+                              itemCount: orderDocs.length,
                               separatorBuilder: (context, index) => Divider(
                                 color: isDark ? AppTheme.darkBorder : const Color(0xFFEFF1F6),
                                 height: 22,
                               ),
                               itemBuilder: (context, index) {
-                                final orderData = sortedOrders[index].data() as Map<String, dynamic>;
-                                final orderNum = (orderData['orderNumber'] ?? sortedOrders[index].id).toString();
-                                final shortOrderNum = orderNum.length > 8 ? orderNum.substring(0, 8) : orderNum;
-                                final deliveryFee = (orderData['deliveryFee'] as num?)?.toDouble() ?? 1200.0;
-                                final tip = (orderData['tip'] as num?)?.toDouble() ?? 0.0;
-                                final earnedAmount = deliveryFee + tip;
-                                final restaurantName = (orderData['restaurantName'] ?? orderData['vendorName'] ?? 'Food Delivery').toString();
-                                final timeStr = _formatTimestamp(orderData['deliveredAt'] ?? orderData['createdAt']);
+                                final orderData =
+                                    orderDocs[index].data() as Map<String, dynamic>;
+                                final orderId = orderDocs[index].id;
+                                final deliveryFee =
+                                    (orderData['deliveryFee'] as num?) ?? 0;
+                                final timestamp = orderData['timeline']?['deliveredAt'] ??
+                                    orderData['createdAt'];
+                                final timeStr = _formatTimestamp(timestamp);
 
                                 return _buildTransactionRow(
                                   context: context,
-                                  title: '$restaurantName (#$shortOrderNum)',
+                                  title: 'Delivery Earning',
+                                  description: 'Order #$orderId',
                                   time: timeStr,
-                                  amount: '+₦${_formatCurrency(earnedAmount)}',
+                                  amount: '+₦${_formatCurrency(deliveryFee)}',
                                   type: 'Delivery',
                                   isExpense: false,
                                   icon: LucideIcons.packageCheck,
@@ -288,9 +313,91 @@ class TransactionHistoryScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildFilterButton(int index, String label, Color purpleColor, bool isDark) {
+    final isSelected = _selectedFilterIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedFilterIndex = index;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? purpleColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? Colors.grey[300] : const Color(0xFF64748B)),
+              fontSize: AppTypography.font(12),
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required Color purpleColor,
+    required Color primaryTextColor,
+    required Color mutedTextColor,
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
+      child: Column(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: purpleColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Icon(
+                LucideIcons.receiptText,
+                color: purpleColor,
+                size: 26,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: TextStyle(
+              color: primaryTextColor,
+              fontSize: AppTypography.font(AppFontSizes.bodyLarge),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: mutedTextColor,
+              fontSize: AppTypography.font(AppFontSizes.bodySmall),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTransactionRow({
     required BuildContext context,
     required String title,
+    String? description,
     required String time,
     required String amount,
     required String type,
@@ -336,12 +443,25 @@ class TransactionHistoryScreen extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (description != null && description.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
+                    fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
               const SizedBox(height: 4),
               Text(
                 time,
                 style: TextStyle(
                   color: mutedTextColor,
-                  fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                  fontSize: AppTypography.font(AppFontSizes.caption),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -355,7 +475,9 @@ class TransactionHistoryScreen extends StatelessWidget {
             Text(
               amount,
               style: TextStyle(
-                color: isExpense ? const Color(0xFFE11D48) : primaryTextColor,
+                color: isExpense
+                    ? (isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48))
+                    : (isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A)),
                 fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                 fontWeight: FontWeight.w800,
               ),

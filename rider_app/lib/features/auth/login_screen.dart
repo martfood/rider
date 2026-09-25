@@ -3,10 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
 import 'auth_error_handler.dart';
@@ -32,15 +29,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  String? _lastGoogleName;
-  String? _lastGoogleEmail;
-  String? _lastGooglePhoto;
-  bool _hasPreviousGoogleLogin = false;
-
   @override
   void initState() {
     super.initState();
-    _loadLastGoogleAccount();
 
     if (widget.suspensionReason != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -55,110 +46,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loadLastGoogleAccount() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _lastGoogleName = prefs.getString('last_google_name');
-      _lastGoogleEmail = prefs.getString('last_google_email');
-      _lastGooglePhoto = prefs.getString('last_google_photo');
-      _hasPreviousGoogleLogin = prefs.getBool('has_previous_google_login') ?? false;
-    });
-  }
-
-  Future<void> _saveGoogleAccount(User user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('last_google_name', user.displayName ?? 'Google User');
-    await prefs.setString('last_google_email', user.email ?? '');
-    await prefs.setString('last_google_photo', user.photoURL ?? '');
-    await prefs.setBool('has_previous_google_login', true);
-    _loadLastGoogleAccount();
-  }
-
-  Future<void> _handleGoogleSignIn({required bool switchAccount}) async {
-    final router = GoRouter.of(context);
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final googleSignIn = GoogleSignIn(
-        serverClientId: '45361321160-9ofs6jkpgbk539bjl5bdro0fnknhavtl.apps.googleusercontent.com',
-      );
-      if (switchAccount) {
-        await googleSignIn.signOut();
-      }
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await FirebaseAuth.instance
-          .signInWithCredential(credential)
-          .timeout(const Duration(seconds: 10));
-
-      final user = userCredential.user;
-      if (user != null) {
-        await _saveGoogleAccount(user);
-        final docRef = FirebaseFirestore.instance
-            .collection('riders')
-            .doc(user.uid);
-        final docSnap = await docRef.get();
-
-        if (!docSnap.exists) {
-          await docRef.set({
-            'uid': user.uid,
-            'email': user.email ?? '',
-            'fullName': user.displayName ?? 'Google User',
-            'username': (user.email ?? '').split('@').first,
-            'phone': user.phoneNumber ?? '',
-            'vehicleType': 'Bicycle',
-            'photoUrl': user.photoURL ?? '',
-            'walletBalance': 0.0,
-            'verificationStatus': 'unverified',
-            'rejectionReason': '',
-            'completedOrders': 0,
-            'status': 'offline',
-            'isOnline': false,
-            'currentLocation': const GeoPoint(6.5244, 3.3792),
-            'createdAt': FieldValue.serverTimestamp(),
-          }).timeout(const Duration(seconds: 5));
-        } else if (AccountStatusService.isSuspended(docSnap.data())) {
-          final info = AccountStatusService.parseSuspension(docSnap.data());
-          await FirebaseAuth.instance.signOut();
-          if (mounted) {
-            AccountStatusService.showSuspensionSheet(
-              context,
-              reason: info.reason,
-              suspendedUntil: info.suspendedUntil,
-            );
-          }
-          return;
-        }
-      }
-
-      if (mounted) {
-        router.go('/home');
-      }
-    } catch (e) {
-      if (mounted) {
-        AuthErrorHandler.showError(context, e);
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
 
   @override
   void dispose() {
@@ -591,139 +478,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  if (defaultTargetPlatform != TargetPlatform.iOS) ...[
-                    // ── 7. Or Divider ───────────────────────────────────────
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Divider(
-                            color: isDark ? AppTheme.darkBorder : Colors.grey[300],
-                            thickness: 1,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Text(
-                            'Or',
-                            style: TextStyle(
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                              fontSize: AppTypography.font(14),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Divider(
-                            color: isDark ? AppTheme.darkBorder : Colors.grey[300],
-                            thickness: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── 8. Previous Google Account Quick Login ──────────────
-                    if (_hasPreviousGoogleLogin) ...[
-                      GestureDetector(
-                        onTap: () => _handleGoogleSignIn(switchAccount: false),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: purpleColor.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: purpleColor.withValues(alpha: 0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 20,
-                                backgroundColor: purpleColor.withValues(alpha: 0.1),
-                                backgroundImage: _lastGooglePhoto != null && _lastGooglePhoto!.isNotEmpty
-                                    ? NetworkImage(_lastGooglePhoto!)
-                                    : null,
-                                child: _lastGooglePhoto == null || _lastGooglePhoto!.isEmpty
-                                    ? Icon(Icons.person, color: purpleColor)
-                                    : null,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Continue as ${_lastGoogleName ?? "Google User"}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: AppTypography.font(14),
-                                        color: textColor,
-                                      ),
-                                    ),
-                                    Text(
-                                      _lastGoogleEmail ?? '',
-                                      style: TextStyle(
-                                        color: isDark ? Colors.grey[400] : Colors.grey[600],
-                                        fontSize: AppTypography.font(12),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Icon(Icons.arrow_forward_ios, size: 14, color: purpleColor),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // ── 9. Google Sign In Button ────────────────────────────
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: OutlinedButton(
-                        onPressed: () => _handleGoogleSignIn(switchAccount: _hasPreviousGoogleLogin),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: isDark ? AppTheme.darkBorder : AppTheme.lightPurpleBorder,
-                            width: 1.2,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.network(
-                              'https://pngimg.com/uploads/google/google_PNG19635.png',
-                              height: 22,
-                              errorBuilder: (context, error, stackTrace) => const Icon(
-                                Icons.g_mobiledata,
-                                size: 24,
-                                color: Colors.redAccent,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Sign in with Google',
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: AppTypography.font(15),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
 
                   const SizedBox(height: 24),
                 ],

@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 
-/// Bottom navigation for the MartFood rider app (Home, Orders, Messages, Wallet, Profile).
+/// Bottom navigation for the MartFood rider app (Home, Orders, Chat, Wallet, Profile).
 class RiderBottomNavBar extends StatelessWidget {
   /// Currently selected tab index (0–4).
   final int currentIndex;
@@ -153,7 +153,7 @@ class RiderBottomNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: _buildNavIcon(iconName: 'order', isSelected: false),
             activeIcon: _buildNavIcon(iconName: 'order', isSelected: true),
-            label: 'Deliveries',
+            label: 'Orders',
           ),
           BottomNavigationBarItem(
             icon: _buildBadgedIcon(
@@ -166,7 +166,7 @@ class RiderBottomNavBar extends StatelessWidget {
               unreadCount,
               selectedColor,
             ),
-            label: 'Messages',
+            label: 'Chat',
           ),
           BottomNavigationBarItem(
             icon: _buildNavIcon(iconName: 'wallet', isSelected: false),

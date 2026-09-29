@@ -17,6 +17,7 @@ import '../../domain/order_stage.dart';
 import '../../domain/rider_order.dart';
 import '../../providers/orders_providers.dart';
 import '../../providers/rider_profile_provider.dart';
+import '../home/order_acceptance_success_sheet.dart';
 
 /// Full order detail screen matching the Active Delivery reference UI.
 class OrderDetailScreen extends ConsumerStatefulWidget {
@@ -60,6 +61,116 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update order status: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _acceptOrder(Map<String, dynamic> data) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || _isSubmitting) return;
+
+    final profile = ref.read(riderProfileProvider);
+    final orderRef = FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
+    final riderRef = FirebaseFirestore.instance.collection('riders').doc(uid);
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snap = await transaction.get(orderRef);
+        if (!snap.exists) {
+          throw Exception('This order is no longer available.');
+        }
+
+        final currentData = snap.data()!;
+        final broadcastStatus = currentData['broadcastStatus'] as String? ?? '';
+        final existingRiderId = currentData['riderId'] as String? ?? '';
+
+        if (broadcastStatus == 'claimed' || (existingRiderId.isNotEmpty && existingRiderId != uid)) {
+          throw Exception('Another rider has already accepted this order.');
+        }
+
+        transaction.update(orderRef, {
+          'broadcastStatus': 'claimed',
+          'riderId': uid,
+          'riderName': profile.displayName.isNotEmpty ? profile.displayName : 'Assigned Rider',
+          'riderPhone': profile.phone,
+          'status': 'rider_assigned',
+          'acceptedAt': FieldValue.serverTimestamp(),
+          'riderAssignedAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.set(
+          riderRef,
+          {
+            'activeOrderId': widget.orderId,
+            'acceptedOrdersCount': FieldValue.increment(1),
+          },
+          SetOptions(merge: true),
+        );
+      });
+
+      // Send push notification to customer
+      try {
+        var customerId = (data['customerId'] ?? data['userId'])?.toString();
+        if (customerId == null || customerId.isEmpty) {
+          final oSnap = await orderRef.get();
+          if (oSnap.exists) {
+            final oData = oSnap.data();
+            customerId = (oData?['customerId'] ?? oData?['userId'])?.toString();
+          }
+        }
+
+        if (customerId != null && customerId.isNotEmpty) {
+          final rawNum = (data['orderNumber'] ?? widget.orderId).toString().replaceAll('#', '');
+          final displayId = rawNum.length > 6 ? rawNum.substring(rawNum.length - 6).toUpperCase() : rawNum.toUpperCase();
+          final riderName = profile.displayName.isNotEmpty ? profile.displayName : 'A rider';
+
+          await NotificationService.sendPushToCustomer(
+            customerId: customerId,
+            title: 'Rider Assigned! 🚴',
+            body: '$riderName has accepted your delivery for order #$displayId.',
+            data: {
+              'orderId': widget.orderId.replaceAll('#', ''),
+              'type': 'order_status',
+              'status': 'rider_assigned',
+              'riderId': uid,
+              'riderName': riderName,
+            },
+          );
+        }
+      } catch (notifErr) {
+        debugPrint('Error sending customer push on rider accept: $notifErr');
+      }
+
+      if (mounted) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final restaurantName = (data['restaurantName'] ?? 'Restaurant').toString();
+        final restaurantAddress = (data['restaurantAddress'] ?? data['pickupAddress'] ?? 'Pickup Location').toString();
+        final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ?? (data['fee'] as num?)?.toDouble() ?? 0.0;
+        final deliveryFeeLabel = '₦${deliveryFee.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+
+        showOrderAcceptedSuccessSheet(
+          context: context,
+          orderId: widget.orderId,
+          restaurantName: restaurantName,
+          pickupAddress: restaurantAddress,
+          deliveryFeeLabel: deliveryFeeLabel,
+          isDark: isDark,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
             backgroundColor: const Color(0xFFDC2626),
           ),
         );
@@ -530,6 +641,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           final activeStepIndex = _getActiveStepIndex(effectiveOrder.stage);
           final isDeliveryPinStage = effectiveOrder.stage == OrderStage.awaitingDeliveryCode ||
               effectiveOrder.stage == OrderStage.readyToMarkDelivered;
+          final isUnclaimed = (data['riderId'] == null || (data['riderId'] as String).isEmpty) &&
+              (data['broadcastStatus'] == 'broadcasting' ||
+               data['status'] == 'ready_for_pickup' ||
+               data['status'] == 'preparing' ||
+               data['status'] == 'pending');
 
           return SafeArea(
             child: Align(
@@ -638,7 +754,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                               child: ElevatedButton(
                                 onPressed: _isSubmitting
                                     ? null
-                                    : () => _handlePrimaryAction(effectiveOrder, isDark, purpleColor),
+                                    : (isUnclaimed
+                                        ? () => _acceptOrder(data)
+                                        : () => _handlePrimaryAction(effectiveOrder, isDark, purpleColor)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: purpleColor,
                                   foregroundColor: Colors.white,
@@ -657,7 +775,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                         ),
                                       )
                                     : Text(
-                                        _getPrimaryButtonLabel(effectiveOrder.stage),
+                                        isUnclaimed
+                                            ? 'Accept Delivery'
+                                            : _getPrimaryButtonLabel(effectiveOrder.stage),
                                         style: TextStyle(
                                           fontSize: AppTypography.font(15),
                                           fontWeight: FontWeight.bold,

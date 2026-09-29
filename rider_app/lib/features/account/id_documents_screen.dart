@@ -94,7 +94,9 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
     try {
       final picked = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
       );
       if (picked != null && mounted) {
         setState(() {
@@ -115,7 +117,9 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
     try {
       final picked = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
       );
       if (picked != null && mounted) {
         setState(() {
@@ -133,25 +137,35 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
   }
 
   void _showFeedbackSnackBar(String message, {bool isError = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? Colors.white : AppTheme.lightInputFill;
+    const textColor = Colors.black;
+    final borderColor = isDark ? const Color(0xFFE5E5EA) : AppTheme.lightInputBorder;
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         elevation: 0,
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor, width: 1.0),
+        ),
+        margin: const EdgeInsets.all(16),
         content: Row(
           children: [
             Icon(
               isError ? LucideIcons.alertCircle : LucideIcons.checkCircle,
-              color: Colors.white,
-              size: 18,
+              color: isError ? const Color(0xFFC62828) : const Color(0xFF2E7D32),
+              size: 20,
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 message,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: textColor,
                   fontWeight: FontWeight.w600,
                   fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                 ),
@@ -234,7 +248,7 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
           .child('riders')
           .child(uid)
           .child('nin_document_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      await ninStorageRef.putFile(_ninFile!);
+      await ninStorageRef.putFile(_ninFile!, SettableMetadata(contentType: 'image/jpeg'));
       final ninUrl = await ninStorageRef.getDownloadURL();
 
       // 2. Upload Vehicle Photo
@@ -243,7 +257,7 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
           .child('riders')
           .child(uid)
           .child('vehicle_photo_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      await vehicleStorageRef.putFile(_vehiclePhotoFile!);
+      await vehicleStorageRef.putFile(_vehiclePhotoFile!, SettableMetadata(contentType: 'image/jpeg'));
       final vehicleUrl = await vehicleStorageRef.getDownloadURL();
 
       // 3. Update Firestore Document
@@ -1039,20 +1053,26 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: AppTypography.font(AppFontSizes.bodyMedium),
-            color: mutedTextColor,
-            fontWeight: FontWeight.w500,
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: AppTypography.font(AppFontSizes.bodyMedium),
+              color: mutedTextColor,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: AppTypography.font(AppFontSizes.bodyMedium),
-            color: primaryTextColor,
-            fontWeight: FontWeight.w700,
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              fontSize: AppTypography.font(AppFontSizes.bodyMedium),
+              color: primaryTextColor,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],

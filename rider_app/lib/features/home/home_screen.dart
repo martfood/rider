@@ -13,6 +13,7 @@ import 'package:shared_widgets/core/theme/app_theme.dart';
 import '../../providers/rider_app_providers.dart';
 import '../../providers/rider_profile_provider.dart';
 import '../../core/services/app_update_service.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/services/rider_location_service.dart';
 import 'order_acceptance_success_sheet.dart';
 import 'rider_current_location_map_card.dart';
@@ -333,6 +334,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           'acceptedOrdersCount': FieldValue.increment(1),
         }, SetOptions(merge: true));
       });
+
+      // Send push notification to customer
+      try {
+        var customerId = (orderData['customerId'] ?? orderData['userId'])?.toString();
+        if (customerId == null || customerId.isEmpty) {
+          final oSnap = await orderRef.get();
+          if (oSnap.exists) {
+            final oData = oSnap.data();
+            customerId = (oData?['customerId'] ?? oData?['userId'])?.toString();
+          }
+        }
+
+        if (customerId != null && customerId.isNotEmpty) {
+          final rawNum = (orderData['orderNumber'] ?? orderId).toString().replaceAll('#', '');
+          final displayId = rawNum.length > 6 ? rawNum.substring(rawNum.length - 6).toUpperCase() : rawNum.toUpperCase();
+          final riderName = profile.displayName.isNotEmpty ? profile.displayName : 'A rider';
+
+          await NotificationService.sendPushToCustomer(
+            customerId: customerId,
+            title: 'Rider Assigned! 🚴',
+            body: '$riderName has accepted your delivery for order #$displayId.',
+            data: {
+              'orderId': orderId.replaceAll('#', ''),
+              'type': 'order_status',
+              'status': 'rider_assigned',
+              'riderId': uid,
+              'riderName': riderName,
+            },
+          );
+        }
+      } catch (notifErr) {
+        debugPrint('Error sending customer push on rider accept: $notifErr');
+      }
 
       if (mounted) {
         final isDark = Theme.of(context).brightness == Brightness.dark;

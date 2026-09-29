@@ -172,6 +172,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>? ?? {};
         return ConversationScreen(
+          chatId: extra['chatId'] as String?,
           otherUserId: extra['id'] as String? ?? '',
           otherUserName: extra['name'] as String?,
           otherUserPhoto: extra['photo'] as String?,

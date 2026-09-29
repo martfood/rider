@@ -85,6 +85,14 @@ class AuthErrorHandler {
       icon = Icons.lock_outline_rounded;
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? Colors.white : AppTheme.lightInputFill;
+    const textColor = Colors.black;
+    final borderColor = isDark ? const Color(0xFFE5E5EA) : AppTheme.lightInputBorder;
+    final iconColor = isNetwork
+        ? const Color(0xFFD97706)
+        : (isLock ? const Color(0xFFC62828) : AppTheme.primaryPurple);
+
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -92,15 +100,15 @@ class AuthErrorHandler {
           children: [
             Icon(
               icon,
-              color: Colors.white,
-              size: 24,
+              color: iconColor,
+              size: 22,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 message,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: textColor,
                   fontWeight: FontWeight.w600,
                   fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                 ),
@@ -108,10 +116,12 @@ class AuthErrorHandler {
             ),
           ],
         ),
-        backgroundColor: isNetwork ? Colors.amber[900]! : (isLock ? Colors.red[800]! : AppTheme.primaryColor),
+        backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor, width: 1.0),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         duration: const Duration(seconds: 4),

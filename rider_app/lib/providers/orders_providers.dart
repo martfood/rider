@@ -108,13 +108,18 @@ class OrdersNotifier extends Notifier<OrdersState> {
         final orderSnap = await FirebaseFirestore.instance.collection('orders').doc(id).get();
         if (orderSnap.exists) {
           final orderData = orderSnap.data();
-          final customerId = orderData?['customerId'] as String?;
+          final customerId = (orderData?['customerId'] ?? orderData?['userId'])?.toString();
           
           if (customerId != null && customerId.isNotEmpty) {
             String title = '';
             String body = '';
             
             switch (status) {
+              case 'rider_assigned':
+                final riderName = (orderData?['riderName'] ?? 'Your rider').toString();
+                title = 'Rider Assigned! 🚴';
+                body = '$riderName has been assigned to deliver your order.';
+                break;
               case 'at_restaurant':
                 title = 'Rider at Restaurant 🏪';
                 body = 'Your rider has arrived at the restaurant to pick up your order.';

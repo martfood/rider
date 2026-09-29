@@ -159,7 +159,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               email: _email,
               password: _password,
             )
-            .timeout(const Duration(seconds: 8));
+            .timeout(const Duration(seconds: 15));
         uid = credential.user?.uid;
       } on FirebaseAuthException catch (authEx) {
         if (authEx.code == 'email-already-in-use') {
@@ -169,14 +169,20 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   email: _email,
                   password: _password,
                 )
-                .timeout(const Duration(seconds: 8));
+                .timeout(const Duration(seconds: 15));
             final existingUid = existingCred.user?.uid;
             if (existingUid != null) {
               final riderDoc = await FirebaseFirestore.instance
                   .collection('riders')
                   .doc(existingUid)
                   .get();
-              if (riderDoc.exists) {
+              final riderData = riderDoc.data();
+              final bool hasCompletedProfile = riderDoc.exists &&
+                  riderData != null &&
+                  riderData.containsKey('fullName') &&
+                  riderData['fullName'] != null &&
+                  riderData['fullName'].toString().trim().isNotEmpty;
+              if (hasCompletedProfile) {
                 throw Exception(
                   'A Rider account with this email already exists. Please log in directly.',
                 );
@@ -196,22 +202,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         }
       }
       if (uid != null) {
-        String photoUrl = '';
-
-        // 2. Upload photo if provided
-        if (_photoPath != null && _photoPath!.isNotEmpty) {
-          final file = File(_photoPath!);
-          if (await file.exists()) {
-            final storageRef = FirebaseStorage.instance
-                .ref()
-                .child('rider_profiles')
-                .child('$uid.jpg');
-            await storageRef.putFile(file).timeout(const Duration(seconds: 8));
-            photoUrl = await storageRef.getDownloadURL().timeout(const Duration(seconds: 5));
-          }
-        }
-
-        // 3. Store in Firestore collection 'riders'
+        // 2. Store in Firestore collection 'riders' FIRST with merge (guarantees account is created immediately)
         await FirebaseFirestore.instance.collection('riders').doc(uid).set({
           'uid': uid,
           'email': _email,
@@ -219,7 +210,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
           'username': _username.isNotEmpty ? _username : _email.split('@').first,
           'phone': _phone,
           'vehicleType': _vehicleType,
-          'photoUrl': photoUrl,
+          'photoUrl': '',
           'walletBalance': 0.0,
           'verificationStatus': 'unverified',
           'rejectionReason': '',
@@ -228,7 +219,12 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
           'isOnline': false,
           'currentLocation': const GeoPoint(6.5244, 3.3792),
           'createdAt': FieldValue.serverTimestamp(),
-        }).timeout(const Duration(seconds: 8));
+        }, SetOptions(merge: true)).timeout(const Duration(seconds: 15));
+
+        // 3. Upload photo asynchronously in background so rider transitions instantly
+        if (_photoPath != null && _photoPath!.isNotEmpty) {
+          _uploadPhotoInBackground(uid, _photoPath!);
+        }
       }
 
       if (mounted) {
@@ -248,6 +244,31 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         });
       }
     }
+  }
+
+  void _uploadPhotoInBackground(String uid, String path) {
+    Future.microtask(() async {
+      try {
+        final file = File(path);
+        if (await file.exists()) {
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('rider_profiles')
+              .child('$uid.jpg');
+          await storageRef.putFile(
+            file,
+            SettableMetadata(contentType: 'image/jpeg'),
+          );
+          final photoUrl = await storageRef.getDownloadURL();
+          await FirebaseFirestore.instance
+              .collection('riders')
+              .doc(uid)
+              .update({'photoUrl': photoUrl});
+        }
+      } catch (e) {
+        debugPrint('Background rider photo upload error: $e');
+      }
+    });
   }
 
 

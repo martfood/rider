@@ -54,6 +54,21 @@ class _MessageScreenState extends State<MessageScreen> {
     return false;
   }
 
+  int _getUnreadCount(Map<String, dynamic> chat, String userId) {
+    final unreadMap = chat['unreadCount'] as Map<String, dynamic>?;
+    if (unreadMap == null) return 0;
+    final riderId = chat['riderId']?.toString();
+    final customerId = chat['customerId']?.toString();
+    final vendorId = chat['vendorId']?.toString();
+    if (riderId == userId && (customerId == userId || vendorId == userId)) {
+      final roleUnread = unreadMap['rider_unread'];
+      if (roleUnread is num) return roleUnread.toInt();
+    }
+    final count = unreadMap[userId];
+    if (count is num) return count.toInt();
+    return 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -147,7 +162,11 @@ class _MessageScreenState extends State<MessageScreen> {
         }
 
         final docs = snapshot.data?.docs ?? [];
-        final allChats = docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+        final allChats = docs.map((doc) {
+          final data = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
+          data['chatId'] = doc.id;
+          return data;
+        }).toList();
 
         // Separate chats into Customer and Vendor
         final customerChats = allChats.where((c) => !_isVendorChat(c)).toList();
@@ -156,16 +175,12 @@ class _MessageScreenState extends State<MessageScreen> {
         // Calculate unread totals for badges
         int customerUnreadTotal = 0;
         for (final c in customerChats) {
-          final unreadMap = c['unreadCount'] as Map<String, dynamic>?;
-          final count = (unreadMap?[userId] as num?)?.toInt() ?? 0;
-          customerUnreadTotal += count;
+          customerUnreadTotal += _getUnreadCount(c, userId);
         }
 
         int vendorUnreadTotal = 0;
         for (final c in vendorChats) {
-          final unreadMap = c['unreadCount'] as Map<String, dynamic>?;
-          final count = (unreadMap?[userId] as num?)?.toInt() ?? 0;
-          vendorUnreadTotal += count;
+          vendorUnreadTotal += _getUnreadCount(c, userId);
         }
 
         return Column(
@@ -454,10 +469,16 @@ class _MessageScreenState extends State<MessageScreen> {
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final chat = filteredList[index];
-        final otherUserId = (chat['members'] as List<dynamic>?)
-                ?.firstWhere((m) => m != userId, orElse: () => '') ??
+        final rawOtherId = (chat['members'] as List<dynamic>?)
+                ?.firstWhere((m) => m.toString() != userId, orElse: () => '')
+                ?.toString() ??
             '';
         final isVendor = _isVendorChat(chat) || isVendorTab;
+        final otherUserId = rawOtherId.isNotEmpty
+            ? rawOtherId
+            : (isVendor
+                ? (chat['vendorId'] ?? userId).toString()
+                : (chat['customerId'] ?? userId).toString());
         final displayName = isVendor
             ? (chat['vendorName'] ?? 'Vendor Store')
             : (chat['customerName'] ?? 'Customer');
@@ -466,7 +487,7 @@ class _MessageScreenState extends State<MessageScreen> {
             : (chat['customerPhoto'] ?? '');
         final lastMsg = chat['lastMessage'] ?? 'No messages yet';
         final lastTime = chat['lastMessageTime'] as Timestamp?;
-        final unread = (chat['unreadCount'] as Map<String, dynamic>?)?[userId] ?? 0;
+        final unread = _getUnreadCount(chat, userId);
         final formattedTime = _formatTimestamp(lastTime);
 
         return Material(
@@ -474,6 +495,7 @@ class _MessageScreenState extends State<MessageScreen> {
           borderRadius: BorderRadius.circular(18),
           child: InkWell(
             onTap: () => context.push('/conversation', extra: {
+              'chatId': chat['chatId'] ?? '',
               'id': otherUserId,
               'name': displayName,
               'photo': photoUrl,

@@ -10,6 +10,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/services/notification_service.dart';
 import '../../providers/rider_profile_provider.dart';
 import 'order_acceptance_success_sheet.dart';
 
@@ -101,6 +102,39 @@ class _OrderRequestDetailScreenState
           SetOptions(merge: true),
         );
       });
+
+      // Send push notification to customer
+      try {
+        var customerId = (data['customerId'] ?? data['userId'])?.toString();
+        if (customerId == null || customerId.isEmpty) {
+          final oSnap = await orderRef.get();
+          if (oSnap.exists) {
+            final oData = oSnap.data();
+            customerId = (oData?['customerId'] ?? oData?['userId'])?.toString();
+          }
+        }
+
+        if (customerId != null && customerId.isNotEmpty) {
+          final rawNum = (data['orderNumber'] ?? widget.orderId).toString().replaceAll('#', '');
+          final displayId = rawNum.length > 6 ? rawNum.substring(rawNum.length - 6).toUpperCase() : rawNum.toUpperCase();
+          final riderName = profile.displayName.isNotEmpty ? profile.displayName : 'A rider';
+
+          await NotificationService.sendPushToCustomer(
+            customerId: customerId,
+            title: 'Rider Assigned! 🚴',
+            body: '$riderName has accepted your delivery for order #$displayId.',
+            data: {
+              'orderId': widget.orderId.replaceAll('#', ''),
+              'type': 'order_status',
+              'status': 'rider_assigned',
+              'riderId': uid,
+              'riderName': riderName,
+            },
+          );
+        }
+      } catch (notifErr) {
+        debugPrint('Error sending customer push on rider accept: $notifErr');
+      }
 
       if (mounted) {
         final isDark = Theme.of(context).brightness == Brightness.dark;

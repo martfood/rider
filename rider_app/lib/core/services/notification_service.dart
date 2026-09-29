@@ -337,11 +337,12 @@ class NotificationService {
 
       if (doc.exists) {
         final currentToken = doc.data()?['fcmToken'];
-        if (currentToken == token) return; // Already up-to-date
-        await docRef.update({
-          'fcmToken': token,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        if (currentToken != token) {
+          await docRef.update({
+            'fcmToken': token,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
       } else {
         await docRef.set({
           'fcmToken': token,
@@ -349,12 +350,24 @@ class NotificationService {
         }, SetOptions(merge: true));
       }
 
+      // Also ensure token is saved to users collection
+      try {
+        await _firestore.collection('users').doc(riderId).set({
+          'fcmToken': token,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+
       if (kDebugMode) {
         print('FCM token saved for rider $riderId');
       }
     } catch (e) {
       try {
         await _firestore.collection('riders').doc(riderId).set({
+          'fcmToken': token,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        await _firestore.collection('users').doc(riderId).set({
           'fcmToken': token,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -394,6 +407,20 @@ class NotificationService {
     }
 
     try {
+      final Map<String, String> stringData = {
+        'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+        'title': title,
+        'body': body,
+        'channelId': channelId,
+      };
+      if (data != null) {
+        data.forEach((k, v) {
+          if (v != null) {
+            stringData[k] = v.toString();
+          }
+        });
+      }
+
       final response = await http.post(
         Uri.parse('https://fcm.googleapis.com/fcm/send'),
         headers: {
@@ -413,12 +440,7 @@ class NotificationService {
             'click_action': 'FLUTTER_NOTIFICATION_CLICK',
             'android_channel_id': channelId,
           },
-          'data': {
-            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-            'title': title,
-            'body': body,
-            ...?data,
-          },
+          'data': stringData,
         }),
       );
 
@@ -493,7 +515,11 @@ class NotificationService {
 
       // 2. Dispatch FCM push directly
       final docSnap = await _firestore.collection('riders').doc(riderId).get();
-      final fcmToken = docSnap.data()?['fcmToken']?.toString();
+      var fcmToken = docSnap.data()?['fcmToken']?.toString();
+      if (fcmToken == null || fcmToken.isEmpty) {
+        final userSnap = await _firestore.collection('users').doc(riderId).get();
+        fcmToken = userSnap.data()?['fcmToken']?.toString();
+      }
 
       if (fcmToken != null && fcmToken.isNotEmpty) {
         await _dispatchFcm(
@@ -501,6 +527,7 @@ class NotificationService {
           title: title,
           body: body,
           data: data,
+          channelId: 'martfood_rider_high',
         );
       } else {
         debugPrint('[FCM] No token for rider $riderId');
@@ -534,7 +561,11 @@ class NotificationService {
 
       // 2. Dispatch FCM push directly
       final docSnap = await _firestore.collection('customers').doc(customerId).get();
-      final fcmToken = docSnap.data()?['fcmToken']?.toString();
+      var fcmToken = docSnap.data()?['fcmToken']?.toString();
+      if (fcmToken == null || fcmToken.isEmpty) {
+        final userSnap = await _firestore.collection('users').doc(customerId).get();
+        fcmToken = userSnap.data()?['fcmToken']?.toString();
+      }
 
       if (fcmToken != null && fcmToken.isNotEmpty) {
         await _dispatchFcm(
@@ -545,6 +576,7 @@ class NotificationService {
           channelId: 'martfood_customer_high',
         );
       } else {
+        debugPrint('[FCM] No token for customer $customerId');
       }
     } catch (e) {
       debugPrint('Error sending customer push: $e');
@@ -575,7 +607,11 @@ class NotificationService {
 
       // 2. Dispatch FCM push directly if vendor has registered an FCM token
       final docSnap = await _firestore.collection('vendors').doc(vendorId).get();
-      final fcmToken = docSnap.data()?['fcmToken']?.toString();
+      var fcmToken = docSnap.data()?['fcmToken']?.toString();
+      if (fcmToken == null || fcmToken.isEmpty) {
+        final userSnap = await _firestore.collection('users').doc(vendorId).get();
+        fcmToken = userSnap.data()?['fcmToken']?.toString();
+      }
 
       if (fcmToken != null && fcmToken.isNotEmpty) {
         await _dispatchFcm(

@@ -150,19 +150,26 @@ class _ConversationScreenState extends State<ConversationScreen> {
         }
       }
 
-      var userDoc = await _firestore.collection('users').doc(widget.otherUserId).get();
-      Map<String, dynamic>? data = userDoc.data();
-
-      if (data == null || !userDoc.exists) {
+      Map<String, dynamic>? data;
+      if (!_isVendor) {
         final custDoc = await _firestore.collection('customers').doc(widget.otherUserId).get();
-        if (custDoc.exists) {
+        if (custDoc.exists && custDoc.data() != null) {
           data = custDoc.data();
-        } else {
-          final vendorDoc = await _firestore.collection('vendors').doc(widget.otherUserId).get();
-          if (vendorDoc.exists) {
-            data = vendorDoc.data();
-            _isVendor = true;
-          }
+        }
+      }
+
+      if (data == null) {
+        final userDoc = await _firestore.collection('users').doc(widget.otherUserId).get();
+        if (userDoc.exists && userDoc.data() != null) {
+          data = userDoc.data();
+        }
+      }
+
+      if (data == null) {
+        final vendorDoc = await _firestore.collection('vendors').doc(widget.otherUserId).get();
+        if (vendorDoc.exists && vendorDoc.data() != null) {
+          data = vendorDoc.data();
+          _isVendor = true;
         }
       }
 
@@ -184,12 +191,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
         final resolvedPhoto = (
           biz?['logoUrl'] ??
+          data['profilePic'] ??
           data['photoUrl'] ??
           data['profilePicture'] ??
           data['photoURL'] ??
           data['avatarUrl'] ??
           data['profileImage'] ??
           data['imageUrl'] ??
+          profile?['profilePic'] ??
           profile?['photoUrl'] ??
           profile?['profilePicture'] ??
           _displayPhoto
@@ -294,7 +303,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
       await _firestore.collection('chats').doc(currentChatId).set(chatPayload, SetOptions(merge: true));
 
-      if (!isSelfChat) {
+      if (widget.otherUserId.isNotEmpty) {
         if (_isVendor) {
           // Dispatch Push Notification to Vendor directly
           NotificationService.sendPushToVendor(

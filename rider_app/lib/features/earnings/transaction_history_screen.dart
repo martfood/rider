@@ -15,7 +15,6 @@ class TransactionHistoryScreen extends StatefulWidget {
 }
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
-  int _selectedFilterIndex = 0; // 0: All, 1: Deliveries, 2: Adjustments
 
   String _formatTimestamp(dynamic createdAt) {
     if (createdAt == null) return 'Just now';
@@ -116,24 +115,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Filter Segment Bar ────────────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppTheme.darkBorder.withValues(alpha: 0.3) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: borderColor, width: 1),
-                    ),
-                    child: Row(
-                      children: [
-                        _buildFilterButton(0, 'All', purpleColor, isDark),
-                        _buildFilterButton(1, 'Deliveries', purpleColor, isDark),
-                        _buildFilterButton(2, 'Adjustments', purpleColor, isDark),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
                   // ── Realtime Transaction Stream ────────────────────────────
                   Container(
                     width: double.infinity,
@@ -166,46 +147,16 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                             return bDt.compareTo(aDt);
                           });
 
-                          // Filter records based on selected tab
-                          final filteredDocs = sortedDocs.where((docSnap) {
-                            if (_selectedFilterIndex == 0) return true;
-                            final d = docSnap.data() as Map<String, dynamic>;
-                            final type = (d['type'] ?? '').toString().toLowerCase();
-                            final isExpense = d['isExpense'] as bool? ?? false;
-                            final source = (d['source'] ?? '').toString().toLowerCase();
-
-                            if (_selectedFilterIndex == 1) {
-                              // Deliveries
-                              return !isExpense && type.contains('delivery') && source != 'admin';
-                            } else {
-                              // Adjustments & Payouts
-                              return type.contains('top up') ||
-                                  type.contains('deduct') ||
-                                  type.contains('payout') ||
-                                  source == 'admin';
-                            }
-                          }).toList();
-
-                          if (filteredDocs.isEmpty) {
-                            return _buildEmptyState(
-                              purpleColor: purpleColor,
-                              primaryTextColor: primaryTextColor,
-                              mutedTextColor: mutedTextColor,
-                              title: 'No matching transactions',
-                              subtitle: 'No records found for the selected filter category.',
-                            );
-                          }
-
                           return ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: filteredDocs.length,
+                            itemCount: sortedDocs.length,
                             separatorBuilder: (context, index) => Divider(
                               color: isDark ? AppTheme.darkBorder : const Color(0xFFEFF1F6),
                               height: 22,
                             ),
                             itemBuilder: (context, index) {
-                              final tx = filteredDocs[index].data() as Map<String, dynamic>;
+                              final tx = sortedDocs[index].data() as Map<String, dynamic>;
                               final amountVal = (tx['amount'] as num?) ?? 0;
                               final isExpense = tx['isExpense'] as bool? ?? false;
                               final typeStr = (tx['type'] ?? (isExpense ? 'Deduction' : 'Delivery')).toString();
@@ -313,36 +264,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  Widget _buildFilterButton(int index, String label, Color purpleColor, bool isDark) {
-    final isSelected = _selectedFilterIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedFilterIndex = index;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? purpleColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isSelected
-                  ? Colors.white
-                  : (isDark ? Colors.grey[300] : const Color(0xFF64748B)),
-              fontSize: AppTypography.font(12),
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildEmptyState({
     required Color purpleColor,

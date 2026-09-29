@@ -58,9 +58,7 @@ class _MessageScreenState extends State<MessageScreen> {
     final unreadMap = chat['unreadCount'] as Map<String, dynamic>?;
     if (unreadMap == null) return 0;
     final riderId = chat['riderId']?.toString();
-    final customerId = chat['customerId']?.toString();
-    final vendorId = chat['vendorId']?.toString();
-    if (riderId == userId && (customerId == userId || vendorId == userId)) {
+    if ((riderId == null || riderId == userId) && unreadMap.containsKey('rider_unread')) {
       final roleUnread = unreadMap['rider_unread'];
       if (roleUnread is num) return roleUnread.toInt();
     }
@@ -511,40 +509,13 @@ class _MessageScreenState extends State<MessageScreen> {
               ),
               child: Row(
                 children: [
-                  // Avatar with Online Badge Indicator
-                  Stack(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: purpleColor.withValues(alpha: 0.12),
-                          image: photoUrl.isNotEmpty
-                              ? DecorationImage(
-                                  image: NetworkImage(photoUrl),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
-                        ),
-                        child: photoUrl.isEmpty
-                            ? Icon(
-                                isVendor ? LucideIcons.store : LucideIcons.user,
-                                color: purpleColor,
-                                size: 24,
-                              )
-                            : null,
-                      ),
-                      if (otherUserId.isNotEmpty)
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: _UserOnlineBadge(
-                            userId: otherUserId,
-                            cardBg: cardBg,
-                          ),
-                        ),
-                    ],
+                  // Avatar with Dynamic Profile Picture
+                  _ChatAvatar(
+                    initialPhotoUrl: photoUrl,
+                    otherUserId: otherUserId,
+                    isVendor: isVendor,
+                    purpleColor: purpleColor,
+                    chatId: chat['chatId']?.toString(),
                   ),
                   const SizedBox(width: 14),
 
@@ -651,93 +622,172 @@ class _MessageScreenState extends State<MessageScreen> {
   }
 }
 
-class _UserOnlineBadge extends StatelessWidget {
-  final String userId;
-  final Color cardBg;
+class _ChatAvatar extends StatefulWidget {
+  final String? initialPhotoUrl;
+  final String otherUserId;
+  final bool isVendor;
+  final Color purpleColor;
+  final String? chatId;
 
-  const _UserOnlineBadge({
-    required this.userId,
-    required this.cardBg,
+  const _ChatAvatar({
+    this.initialPhotoUrl,
+    required this.otherUserId,
+    required this.isVendor,
+    required this.purpleColor,
+    this.chatId,
   });
+
+  static final Map<String, String> _photoCache = {};
+
+  @override
+  State<_ChatAvatar> createState() => _ChatAvatarState();
+}
+
+class _ChatAvatarState extends State<_ChatAvatar> {
+  String _resolvedPhoto = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _initPhoto();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ChatAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialPhotoUrl != oldWidget.initialPhotoUrl ||
+        widget.otherUserId != oldWidget.otherUserId) {
+      _initPhoto();
+    }
+  }
+
+  void _initPhoto() {
+    final initial = widget.initialPhotoUrl?.trim() ?? '';
+    if (initial.isNotEmpty && initial != 'null') {
+      _resolvedPhoto = initial;
+      _ChatAvatar._photoCache[widget.otherUserId] = initial;
+      return;
+    }
+
+    if (widget.otherUserId.isNotEmpty &&
+        _ChatAvatar._photoCache.containsKey(widget.otherUserId)) {
+      _resolvedPhoto = _ChatAvatar._photoCache[widget.otherUserId]!;
+      return;
+    }
+
+    _fetchLivePhoto();
+  }
+
+  Future<void> _fetchLivePhoto() async {
+    if (widget.otherUserId.isEmpty) return;
+    try {
+      String foundUrl = '';
+
+      if (widget.isVendor) {
+        final vDoc = await FirebaseFirestore.instance
+            .collection('vendors')
+            .doc(widget.otherUserId)
+            .get();
+        if (vDoc.exists && vDoc.data() != null) {
+          final data = vDoc.data()!;
+          final biz = data['businessProfile'] as Map<String, dynamic>?;
+          final pBiz = data['pendingBusinessProfile'] as Map<String, dynamic>?;
+          foundUrl = (
+            biz?['logoUrl'] ??
+            pBiz?['logoUrl'] ??
+            data['logoUrl'] ??
+            data['vendorLogo'] ??
+            data['photoUrl'] ??
+            data['profilePic'] ??
+            ''
+          ).toString().trim();
+        }
+      } else {
+        // 1. Prioritize 'customers' collection where MartFood stores customer profile pics
+        final custDoc = await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(widget.otherUserId)
+            .get();
+        if (custDoc.exists && custDoc.data() != null) {
+          final data = custDoc.data()!;
+          foundUrl = (
+            data['profilePic'] ??
+            data['photoUrl'] ??
+            data['avatarUrl'] ??
+            data['profilePicture'] ??
+            data['imageUrl'] ??
+            ''
+          ).toString().trim();
+        }
+
+        // 2. Fallback to 'users' collection if empty
+        if (foundUrl.isEmpty || foundUrl == 'null') {
+          final uDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.otherUserId)
+              .get();
+          if (uDoc.exists && uDoc.data() != null) {
+            final data = uDoc.data()!;
+            final profile = data['profile'] as Map<String, dynamic>?;
+            foundUrl = (
+              data['profilePic'] ??
+              data['photoUrl'] ??
+              data['avatarUrl'] ??
+              data['profilePicture'] ??
+              data['imageUrl'] ??
+              profile?['profilePic'] ??
+              profile?['photoUrl'] ??
+              ''
+            ).toString().trim();
+          }
+        }
+      }
+
+      if (foundUrl.isNotEmpty && foundUrl != 'null' && mounted) {
+        _ChatAvatar._photoCache[widget.otherUserId] = foundUrl;
+        setState(() {
+          _resolvedPhoto = foundUrl;
+        });
+
+        // Sync back to chat document so future reads are instantaneous
+        if (widget.chatId != null && widget.chatId!.isNotEmpty) {
+          FirebaseFirestore.instance
+              .collection('chats')
+              .doc(widget.chatId)
+              .set({
+            if (widget.isVendor) 'vendorPhoto': foundUrl else 'customerPhoto': foundUrl,
+          }, SetOptions(merge: true)).catchError((_) {});
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching chat avatar: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (userId.isEmpty) return const SizedBox.shrink();
-
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        Map<String, dynamic>? data;
-        if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
-          data = snapshot.data!.data() as Map<String, dynamic>?;
-        }
-
-        if (data == null) {
-          return StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('riders')
-                .doc(userId)
-                .snapshots(),
-            builder: (context, riderSnapshot) {
-              if (riderSnapshot.hasData &&
-                  riderSnapshot.data != null &&
-                  riderSnapshot.data!.exists) {
-                final rData = riderSnapshot.data!.data() as Map<String, dynamic>?;
-                return _renderDot(rData, cardBg);
-              }
-
-              return StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('vendors')
-                    .doc(userId)
-                    .snapshots(),
-                builder: (context, vendorSnapshot) {
-                  if (!vendorSnapshot.hasData ||
-                      vendorSnapshot.data == null ||
-                      !vendorSnapshot.data!.exists) {
-                    return const SizedBox.shrink();
-                  }
-                  final vData = vendorSnapshot.data!.data() as Map<String, dynamic>?;
-                  return _renderDot(vData, cardBg);
-                },
-              );
-            },
-          );
-        }
-
-        return _renderDot(data, cardBg);
-      },
-    );
-  }
-
-  Widget _renderDot(Map<String, dynamic>? data, Color cardBg) {
-    if (data == null) return const SizedBox.shrink();
-
-    final status = (data['status'] ?? '').toString().toLowerCase().trim();
-    final isOnlineFlag = data['isOnline'] == true ||
-        data['isOnline']?.toString().toLowerCase() == 'true';
-
-    final bool isOnline =
-        (status == 'online' || isOnlineFlag) && status != 'offline';
-
-    if (!isOnline) {
-      return const SizedBox.shrink();
-    }
+    final hasPhoto = _resolvedPhoto.isNotEmpty && _resolvedPhoto != 'null';
 
     return Container(
-      width: 13,
-      height: 13,
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
-        color: const Color(0xFF22C55E),
         shape: BoxShape.circle,
-        border: Border.all(
-          color: cardBg,
-          width: 2,
-        ),
+        color: widget.purpleColor.withValues(alpha: 0.12),
+        image: hasPhoto
+            ? DecorationImage(
+                image: NetworkImage(_resolvedPhoto),
+                fit: BoxFit.cover,
+              )
+            : null,
       ),
+      child: !hasPhoto
+          ? Icon(
+              widget.isVendor ? LucideIcons.store : LucideIcons.user,
+              color: widget.purpleColor,
+              size: 24,
+            )
+          : null,
     );
   }
 }

@@ -90,9 +90,9 @@ class NotificationService {
       const initSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
       const initSettingsIOS = DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
       );
       const initSettings = InitializationSettings(
         android: initSettingsAndroid,
@@ -295,9 +295,29 @@ class NotificationService {
         });
   }
 
+  /// Cancels any active Firestore notifications subscription upon sign out.
+  static void cancelNotificationsSubscription() {
+    _notificationsSubscription?.cancel();
+    _notificationsSubscription = null;
+  }
+
   /// Registers or refreshes the FCM token for a specific rider.
   static Future<void> registerRiderToken(String riderId) async {
     try {
+      // On iOS, wait for APNs device token before calling getToken()
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        String? apnsToken = await _messaging.getAPNSToken();
+        int attempts = 0;
+        while (apnsToken == null && attempts < 10) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          apnsToken = await _messaging.getAPNSToken();
+          attempts++;
+        }
+        if (kDebugMode && apnsToken != null) {
+          print('[FCM] iOS APNs token acquired for rider: $apnsToken');
+        }
+      }
+
       final token = await _messaging.getToken();
       if (token != null) {
         await _saveTokenToFirestore(riderId, token);
@@ -382,19 +402,22 @@ class NotificationService {
         },
         body: jsonEncode({
           'to': fcmToken,
+          'priority': 'high',
+          'content_available': true,
+          'mutable_content': true,
           'notification': {
             'title': title,
             'body': body,
             'sound': 'default',
+            'badge': 1,
+            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+            'android_channel_id': channelId,
           },
-          'data': data ?? {},
-          'priority': 'high',
-          'content_available': true,
-          'android': {
-            'notification': {
-              'channel_id': channelId,
-              'priority': 'high',
-            },
+          'data': {
+            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+            'title': title,
+            'body': body,
+            ...?data,
           },
         }),
       );

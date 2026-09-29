@@ -8,12 +8,15 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
+import '../../providers/session_provider.dart';
+import '../home/home_screen.dart';
 import 'auth_error_handler.dart';
 import 'email_service.dart';
 
-class OtpScreen extends StatefulWidget {
+class OtpScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> riderData;
 
   const OtpScreen({
@@ -22,10 +25,10 @@ class OtpScreen extends StatefulWidget {
   });
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends ConsumerState<OtpScreen> {
   final TextEditingController _codeController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   String _code = '';
@@ -47,10 +50,14 @@ class _OtpScreenState extends State<OtpScreen> {
   void initState() {
     super.initState();
     _startTimer();
-    _generatedOtp = (1000 + Random().nextInt(9000)).toString();
-    debugPrint('[OTP] Generated registration OTP for $_email: $_generatedOtp');
-    // Dispatch OTP on screen open
-    EmailService.sendOtpEmail(_email, _generatedOtp!);
+    final initialOtp = widget.riderData['otp'] as String?;
+    if (initialOtp != null && initialOtp.isNotEmpty) {
+      _generatedOtp = initialOtp;
+    } else {
+      _generatedOtp = (1000 + Random().nextInt(9000)).toString();
+      EmailService.sendOtpEmail(_email, _generatedOtp!);
+    }
+    debugPrint('[OTP] Active registration OTP for $_email: $_generatedOtp');
     _focusNode.addListener(() {
       if (mounted) setState(() {});
     });
@@ -144,15 +151,50 @@ class _OtpScreenState extends State<OtpScreen> {
         throw Exception('Rider registration data is missing.');
       }
 
-      // 1. Create Firebase Auth User
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _email,
-            password: _password,
-          )
-          .timeout(const Duration(seconds: 8));
-
-      final uid = credential.user?.uid;
+      // 1. Create Firebase Auth User or Link Existing MartFood Account
+      String? uid;
+      try {
+        final credential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+              email: _email,
+              password: _password,
+            )
+            .timeout(const Duration(seconds: 8));
+        uid = credential.user?.uid;
+      } on FirebaseAuthException catch (authEx) {
+        if (authEx.code == 'email-already-in-use') {
+          try {
+            final existingCred = await FirebaseAuth.instance
+                .signInWithEmailAndPassword(
+                  email: _email,
+                  password: _password,
+                )
+                .timeout(const Duration(seconds: 8));
+            final existingUid = existingCred.user?.uid;
+            if (existingUid != null) {
+              final riderDoc = await FirebaseFirestore.instance
+                  .collection('riders')
+                  .doc(existingUid)
+                  .get();
+              if (riderDoc.exists) {
+                throw Exception(
+                  'A Rider account with this email already exists. Please log in directly.',
+                );
+              }
+              uid = existingUid;
+            }
+          } on FirebaseAuthException catch (signInEx) {
+            if (signInEx.code == 'wrong-password' || signInEx.code == 'invalid-credential') {
+              throw Exception(
+                'An account with this email already exists on MartFood. Please enter your existing MartFood account password to activate your Rider profile.',
+              );
+            }
+            rethrow;
+          }
+        } else {
+          rethrow;
+        }
+      }
       if (uid != null) {
         String photoUrl = '';
 
@@ -190,7 +232,10 @@ class _OtpScreenState extends State<OtpScreen> {
       }
 
       if (mounted) {
-        _showSuccessBottomSheet();
+        HomeScreen.resetVerificationPrompt();
+        ref.read(sessionProvider.notifier).signIn();
+        resetAllRiderProviders(ref);
+        context.go('/home');
       }
     } catch (e) {
       if (mounted) {
@@ -205,95 +250,6 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  void _showSuccessBottomSheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final purpleColor = AppTheme.primaryPurpleFor(isDark);
-    final textColor = isDark ? Colors.white : Colors.black87;
-
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
-      elevation: 0,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[700] : Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Icon(
-                Icons.verified,
-                color: purpleColor,
-                size: 72,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Successful',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: AppTypography.font(26),
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Your account has been created successfully.',
-                style: TextStyle(
-                  color: isDark ? Colors.grey[400] : Colors.grey[700],
-                  fontSize: AppTypography.font(15),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    context.pop();
-                    context.go('/home');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: purpleColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: Text(
-                    'Done',
-                    style: TextStyle(
-                      fontSize: AppTypography.font(16),
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {

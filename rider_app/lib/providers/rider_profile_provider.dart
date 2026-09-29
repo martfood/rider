@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rider_app/core/services/notification_service.dart';
+import 'session_provider.dart';
 
 class RiderProfile {
   final String displayName;
@@ -94,18 +94,38 @@ class RiderProfile {
   }
 }
 
+
 class RiderProfileNotifier extends Notifier<RiderProfile> {
   StreamSubscription<DocumentSnapshot>? _sub;
 
   @override
   RiderProfile build() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      NotificationService.registerRiderToken(uid);
-      NotificationService.listenToFirestoreNotifications(uid);
-    }
-    _listenToProfile();
+    final uid = ref.watch(currentRiderUidProvider);
+    _sub?.cancel();
     ref.onDispose(() => _sub?.cancel());
+
+    if (uid == null || uid.isEmpty) {
+      return const RiderProfile(
+        displayName: '',
+        username: '',
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80',
+        balance: 0.0,
+        verificationStatus: 'unverified',
+        rejectionReason: '',
+        email: '',
+        phone: '',
+        vehicleLabel: 'Bicycle',
+        completedOrders: 0,
+        acceptedOrdersCount: 0,
+        declinedOrdersCount: 0,
+        currentLocation: null,
+      );
+    }
+
+    NotificationService.registerRiderToken(uid);
+    NotificationService.listenToFirestoreNotifications(uid);
+    _listenToProfile(uid);
+
     return const RiderProfile(
       displayName: 'Loading...',
       username: '',
@@ -123,11 +143,8 @@ class RiderProfileNotifier extends Notifier<RiderProfile> {
     );
   }
 
-  void _listenToProfile() {
+  void _listenToProfile(String uid) {
     _sub?.cancel();
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
     _sub = FirebaseFirestore.instance
         .collection('riders')
         .doc(uid)

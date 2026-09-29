@@ -20,11 +20,18 @@ import 'rider_current_location_map_card.dart';
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
+  /// Allows resetting the verification prompt session flag upon signout or registration
+  static void resetVerificationPrompt() {
+    _HomeScreenState.hasPromptedVerificationThisSession = false;
+  }
+
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+  static bool hasPromptedVerificationThisSession = false;
+  bool _isVerificationSheetOpen = false;
   bool _obscureBalance = false;
   late final Stream<QuerySnapshot> _broadcastOrdersStream;
 
@@ -40,6 +47,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         AppUpdateService.checkAndPromptUpdate(context);
+
+        // Check if unverified rider needs to be prompted
+        _checkAndPromptVerification();
+
         // If rider is currently online, verify location permission & GPS service
         final isOnline = ref.read(riderAvailabilityProvider);
         if (isOnline) {
@@ -74,6 +85,190 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (hour < 12) return 'Good Morning';
     if (hour < 17) return 'Good Afternoon';
     return 'Good Evening';
+  }
+
+  void _checkAndPromptVerification() {
+    if (hasPromptedVerificationThisSession || _isVerificationSheetOpen) return;
+    final profile = ref.read(riderProfileProvider);
+    if (profile.displayName == 'Loading...') return;
+    if (profile.verificationStatus != 'verified') {
+      hasPromptedVerificationThisSession = true;
+      _showVerificationPromptBottomSheet();
+    }
+  }
+
+  void _showVerificationPromptBottomSheet() {
+    if (_isVerificationSheetOpen || !mounted) return;
+    _isVerificationSheetOpen = true;
+
+    final profile = ref.read(riderProfileProvider);
+    final status = profile.verificationStatus.toLowerCase().trim();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final purpleColor = AppTheme.primaryPurpleFor(isDark);
+    final sheetBg = isDark ? AppTheme.darkSurface : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
+    final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
+    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      elevation: 0,
+      backgroundColor: sheetBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Responsive.maxContainer(
+            context: sheetContext,
+            maxWidth: 450,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: borderColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkSurface : AppTheme.lightInputFill,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: borderColor, width: 1),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        status == 'rejected'
+                            ? LucideIcons.shieldAlert
+                            : (status == 'pending' ? LucideIcons.clock : LucideIcons.shieldCheck),
+                        color: status == 'rejected' ? Colors.redAccent : purpleColor,
+                        size: 36,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    status == 'rejected'
+                        ? 'Verification Required'
+                        : (status == 'pending' ? 'Verification In Progress' : 'Verify Your Identity'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppTypography.font(20),
+                      fontWeight: FontWeight.w700,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    status == 'rejected'
+                        ? (profile.rejectionReason.isNotEmpty
+                            ? 'Your documents were not approved: ${profile.rejectionReason}. Please resubmit your documents to start accepting orders.'
+                            : 'Your verification was not approved. Please review your documents and resubmit to start accepting orders.')
+                        : (status == 'pending'
+                            ? 'Your identity documents are currently under review by our team. Once approved, you can come online and accept customer orders.'
+                            : 'Please submit your identity and vehicle documents for verification in order to come online and accept delivery orders.'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppTypography.font(14),
+                      color: mutedTextColor,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkSurface : AppTheme.lightInputFill,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: borderColor, width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: status == 'rejected'
+                                ? Colors.redAccent
+                                : (status == 'pending' ? Colors.amber : Colors.orange),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          status == 'rejected'
+                              ? 'Status: Rejected'
+                              : (status == 'pending' ? 'Status: Pending Review' : 'Status: Not Verified'),
+                          style: TextStyle(
+                            fontSize: AppTypography.font(13),
+                            fontWeight: FontWeight.w600,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      context.push('/account/id-documents');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: purpleColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      status == 'pending' ? 'View Submitted Documents' : 'Proceed to Verify',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(15),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 44),
+                    ),
+                    child: Text(
+                      'Maybe Later',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(14),
+                        fontWeight: FontWeight.w600,
+                        color: mutedTextColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      _isVerificationSheetOpen = false;
+    });
   }
 
 
@@ -169,6 +364,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<RiderProfile>(riderProfileProvider, (previous, next) {
+      if (!hasPromptedVerificationThisSession &&
+          !_isVerificationSheetOpen &&
+          next.displayName != 'Loading...' &&
+          next.verificationStatus != 'verified') {
+        hasPromptedVerificationThisSession = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showVerificationPromptBottomSheet();
+          }
+        });
+      }
+    });
+
     final profile = ref.watch(riderProfileProvider);
     final online = ref.watch(riderAvailabilityProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -461,13 +670,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                             onChanged: (v) async {
                               if (v) {
                                 if (profile.verificationStatus != 'verified') {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        "Please verify your identity before you can come online or accept orders.",
-                                      ),
-                                    ),
-                                  );
+                                  _showVerificationPromptBottomSheet();
                                   return;
                                 }
                                 final granted = await RiderLocationService.instance.requestPermission(context);

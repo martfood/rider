@@ -5,24 +5,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/services/rider_location_service.dart';
 import '../domain/bank_details.dart';
+import 'session_provider.dart';
 
 class RiderAvailabilityNotifier extends Notifier<bool> {
   StreamSubscription<DocumentSnapshot>? _sub;
 
   @override
   bool build() {
-    _listenToAvailability();
+    final uid = ref.watch(currentRiderUidProvider);
+    _sub?.cancel();
     ref.onDispose(() {
       _sub?.cancel();
       RiderLocationService.instance.stopLiveTracking();
     });
+
+    if (uid == null || uid.isEmpty) {
+      return false;
+    }
+
+    _listenToAvailability(uid);
     return false;
   }
 
-  void _listenToAvailability() {
+  void _listenToAvailability(String uid) {
     _sub?.cancel();
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
 
     _sub = FirebaseFirestore.instance
         .collection('riders')
@@ -49,7 +55,7 @@ class RiderAvailabilityNotifier extends Notifier<bool> {
   }
 
   Future<void> setOnline(bool value) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = ref.read(currentRiderUidProvider) ?? FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
     if (value) {
@@ -88,15 +94,20 @@ class BankDetailsNotifier extends Notifier<BankDetails?> {
 
   @override
   BankDetails? build() {
-    _listenToBankDetails();
+    final uid = ref.watch(currentRiderUidProvider);
+    _sub?.cancel();
     ref.onDispose(() => _sub?.cancel());
+
+    if (uid == null || uid.isEmpty) {
+      return null;
+    }
+
+    _listenToBankDetails(uid);
     return null;
   }
 
-  void _listenToBankDetails() {
+  void _listenToBankDetails(String uid) {
     _sub?.cancel();
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
 
     _sub = FirebaseFirestore.instance
         .collection('riders')
@@ -116,6 +127,8 @@ class BankDetailsNotifier extends Notifier<BankDetails?> {
         } else {
           state = null;
         }
+      } else {
+        state = null;
       }
     });
   }

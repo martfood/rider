@@ -139,6 +139,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'phone': fullPhoneNumber,
         'vehicleType': _vehicleType,
         'photoPath': _imageFile?.path,
+        'otp': otpCode,
       });
     }
   }

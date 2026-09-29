@@ -6,11 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../../core/services/account_status_service.dart';
+import '../../providers/session_provider.dart';
+import '../home/home_screen.dart';
 import 'auth_error_handler.dart';
 import 'email_service.dart';
-import '../../core/services/account_status_service.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   final String? suspensionReason;
   final String? suspendedUntil;
 
@@ -21,10 +26,10 @@ class LoginScreen extends StatefulWidget {
   });
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -82,21 +87,32 @@ class _LoginScreenState extends State<LoginScreen> {
             .doc(user.uid)
             .get();
 
-        if (docSnap.exists && AccountStatusService.isSuspended(docSnap.data())) {
-          final info = AccountStatusService.parseSuspension(docSnap.data());
-          await FirebaseAuth.instance.signOut();
+        if (docSnap.exists) {
+          if (AccountStatusService.isSuspended(docSnap.data())) {
+            final info = AccountStatusService.parseSuspension(docSnap.data());
+            await FirebaseAuth.instance.signOut();
+            if (mounted) {
+              AccountStatusService.showSuspensionSheet(
+                context,
+                reason: info.reason,
+                suspendedUntil: info.suspendedUntil,
+              );
+            }
+            return;
+          }
+        } else {
+          // Document does not exist in riders collection -> prompt rider profile activation
           if (mounted) {
-            AccountStatusService.showSuspensionSheet(
-              context,
-              reason: info.reason,
-              suspendedUntil: info.suspendedUntil,
-            );
+            _showActivateRiderProfileBottomSheet(user);
           }
           return;
         }
       }
 
       if (mounted) {
+        HomeScreen.resetVerificationPrompt();
+        ref.read(sessionProvider.notifier).signIn();
+        resetAllRiderProviders(ref);
         context.go('/home');
       }
     } catch (e) {
@@ -110,6 +126,262 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+
+  void _showActivateRiderProfileBottomSheet(User user) async {
+    String existingName = '';
+    String existingPhone = '';
+    String existingPhotoUrl = '';
+
+    try {
+      final custDoc = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(user.uid)
+          .get();
+      if (custDoc.exists && custDoc.data() != null) {
+        final d = custDoc.data()!;
+        existingName = (d['fullName'] ?? '').toString();
+        existingPhone = (d['phoneNumber'] ?? d['phone'] ?? '').toString();
+        existingPhotoUrl = (d['profilePic'] ?? d['photoUrl'] ?? '').toString();
+      } else {
+        final vendorDoc = await FirebaseFirestore.instance
+            .collection('vendors')
+            .doc(user.uid)
+            .get();
+        if (vendorDoc.exists && vendorDoc.data() != null) {
+          final d = vendorDoc.data()!;
+          existingName = (d['fullName'] ?? '').toString();
+          existingPhone = (d['phone'] ?? '').toString();
+        }
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final purpleColor = AppTheme.primaryPurpleFor(isDark);
+    final sheetBg = isDark ? AppTheme.darkSurface : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
+    final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
+    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+    final cardBg = isDark ? AppTheme.darkSurface : AppTheme.lightInputFill;
+
+    String selectedVehicle = 'Bicycle';
+    bool isActivating = false;
+
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      elevation: 0,
+      backgroundColor: sheetBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return SafeArea(
+              child: Responsive.maxContainer(
+                context: ctx,
+                maxWidth: 450,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: borderColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: borderColor, width: 1),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            LucideIcons.bike,
+                            color: purpleColor,
+                            size: 32,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Activate Rider Account',
+                        style: TextStyle(
+                          fontSize: AppTypography.font(20),
+                          fontWeight: FontWeight.bold,
+                          color: primaryTextColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'We found your MartFood account (${user.email}). Would you like to activate a Rider profile with this account to start delivering and earning?',
+                        style: TextStyle(
+                          fontSize: AppTypography.font(14),
+                          color: mutedTextColor,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Primary Delivery Vehicle',
+                          style: TextStyle(
+                            fontSize: AppTypography.font(13),
+                            fontWeight: FontWeight.w600,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: borderColor, width: 1),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedVehicle,
+                            isExpanded: true,
+                            dropdownColor: sheetBg,
+                            icon: Icon(Icons.keyboard_arrow_down, color: primaryTextColor),
+                            items: const [
+                              DropdownMenuItem(value: 'Bicycle', child: Text('Bicycle')),
+                              DropdownMenuItem(value: 'Motorcycle', child: Text('Motorcycle')),
+                              DropdownMenuItem(value: 'E-bike', child: Text('E-bike')),
+                            ],
+                            onChanged: isActivating
+                                ? null
+                                : (v) {
+                                    if (v != null) {
+                                      setSheetState(() => selectedVehicle = v);
+                                    }
+                                  },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isActivating
+                            ? null
+                            : () async {
+                                setSheetState(() => isActivating = true);
+                                try {
+                                  final fullName = existingName.isNotEmpty
+                                      ? existingName
+                                      : (user.displayName ?? user.email!.split('@').first);
+                                  await FirebaseFirestore.instance
+                                      .collection('riders')
+                                      .doc(user.uid)
+                                      .set({
+                                    'uid': user.uid,
+                                    'email': user.email ?? '',
+                                    'fullName': fullName,
+                                    'username': user.email!.split('@').first,
+                                    'phone': existingPhone,
+                                    'vehicleType': selectedVehicle,
+                                    'photoUrl': existingPhotoUrl,
+                                    'walletBalance': 0.0,
+                                    'verificationStatus': 'unverified',
+                                    'rejectionReason': '',
+                                    'completedOrders': 0,
+                                    'status': 'offline',
+                                    'isOnline': false,
+                                    'currentLocation': const GeoPoint(6.5244, 3.3792),
+                                    'createdAt': FieldValue.serverTimestamp(),
+                                  });
+
+                                  if (ctx.mounted) {
+                                    Navigator.pop(ctx);
+                                  }
+                                  if (mounted) {
+                                    HomeScreen.resetVerificationPrompt();
+                                    ref.read(sessionProvider.notifier).signIn();
+                                    resetAllRiderProviders(ref);
+                                    context.go('/home');
+                                  }
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    setSheetState(() => isActivating = false);
+                                  }
+                                  if (mounted) {
+                                    AuthErrorHandler.showError(context, e);
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: purpleColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          minimumSize: const Size(double.infinity, 50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: isActivating
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Activate Rider Profile',
+                                style: TextStyle(
+                                  fontSize: AppTypography.font(15),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: isActivating
+                            ? null
+                            : () async {
+                                Navigator.pop(ctx);
+                                await FirebaseAuth.instance.signOut();
+                              },
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 44),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: AppTypography.font(14),
+                            fontWeight: FontWeight.w600,
+                            color: mutedTextColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showForgotPasswordBottomSheet() {

@@ -1,7 +1,7 @@
 name: rider_app
 description: MartFood rider (delivery partner) application — frontend mock.
 publish_to: 'none'
-version: 1.0.1+13
+version: 1.0.1+15
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -35,10 +35,11 @@ dependencies:
 
 flutter_launcher_icons:
   android: true
-  ios: false
-  image_path: "lib/assets/martffood_rider.png"
+  ios: true
+  remove_alpha_ios: true
+  image_path: "lib/assets/martffood_rider.jpg"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "lib/assets/martffood_rider.png"
+  adaptive_icon_foreground: "lib/assets/martffood_rider.jpg"
 
 dev_dependencies:
   flutter_test:

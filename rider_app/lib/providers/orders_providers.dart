@@ -10,6 +10,7 @@ import '../domain/ledger_entry.dart';
 import '../domain/order_stage.dart';
 import '../domain/rider_order.dart';
 import '../core/services/notification_service.dart';
+import 'session_provider.dart';
 
 /// Holds active and completed orders for the rider (mock).
 class OrdersState extends Equatable {
@@ -33,16 +34,20 @@ class OrdersNotifier extends Notifier<OrdersState> {
 
   @override
   OrdersState build() {
-    _listenToOrders();
+    final uid = ref.watch(currentRiderUidProvider);
+    _ordersSub?.cancel();
     ref.onDispose(() => _ordersSub?.cancel());
+
+    if (uid == null || uid.isEmpty) {
+      return const OrdersState(active: [], completed: []);
+    }
+
+    _listenToOrders(uid);
     return const OrdersState(active: [], completed: []);
   }
 
-  void _listenToOrders() {
+  void _listenToOrders(String uid) {
     _ordersSub?.cancel();
-
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
 
     _ordersSub = FirebaseFirestore.instance
         .collection('orders')
@@ -444,15 +449,20 @@ class LedgerEntriesNotifier extends Notifier<List<LedgerEntry>> {
 
   @override
   List<LedgerEntry> build() {
-    _listenToLedger();
+    final uid = ref.watch(currentRiderUidProvider);
+    _sub?.cancel();
     ref.onDispose(() => _sub?.cancel());
+
+    if (uid == null || uid.isEmpty) {
+      return const [];
+    }
+
+    _listenToLedger(uid);
     return const [];
   }
 
-  void _listenToLedger() {
+  void _listenToLedger(String uid) {
     _sub?.cancel();
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
 
     _sub = FirebaseFirestore.instance
         .collection('ledger_entries')

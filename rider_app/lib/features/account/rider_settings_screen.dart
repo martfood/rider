@@ -542,10 +542,7 @@ class _RiderSettingsScreenState extends ConsumerState<RiderSettingsScreen> {
                     onPressed: () async {
                       final router = GoRouter.of(context);
                       Navigator.pop(sheetContext);
-                      try {
-                        await FirebaseAuth.instance.signOut();
-                      } catch (_) {}
-                      ref.read(sessionProvider.notifier).signOut();
+                      await appSignOut(ref);
                       if (mounted) {
                         router.go('/get-started');
                       }
@@ -677,7 +674,7 @@ class _RiderSettingsScreenState extends ConsumerState<RiderSettingsScreen> {
                             debugPrint('Error deleting rider account: $e');
                           }
                         }
-                        ref.read(sessionProvider.notifier).signOut();
+                        await appSignOut(ref);
                         if (mounted) {
                           router.go('/get-started');
                         }

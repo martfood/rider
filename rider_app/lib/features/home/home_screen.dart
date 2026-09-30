@@ -10,6 +10,10 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
+import '../../domain/bank_details.dart';
+import '../../domain/order_stage.dart';
+import '../../domain/rider_order.dart';
+import '../../providers/orders_providers.dart';
 import '../../providers/rider_app_providers.dart';
 import '../../providers/rider_profile_provider.dart';
 import '../../core/services/app_update_service.dart';
@@ -24,6 +28,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   /// Allows resetting the verification prompt session flag upon signout or registration
   static void resetVerificationPrompt() {
     _HomeScreenState.hasPromptedVerificationThisSession = false;
+    _HomeScreenState.hasPromptedBankThisSession = false;
+    _HomeScreenState.hasPromptedPickupThisSession = false;
   }
 
   @override
@@ -32,7 +38,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
   static bool hasPromptedVerificationThisSession = false;
+  static bool hasPromptedBankThisSession = false;
+  static bool hasPromptedPickupThisSession = false;
   bool _isVerificationSheetOpen = false;
+  bool _isBankPromptOpen = false;
+  bool _isPickupPromptOpen = false;
   bool _obscureBalance = false;
   late final Stream<QuerySnapshot> _broadcastOrdersStream;
 
@@ -52,14 +62,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         // Check if unverified rider needs to be prompted
         _checkAndPromptVerification();
 
-        // If rider is currently online, verify location permission & GPS service
+        // Check if rider without bank details needs to be prompted
+        _checkAndPromptBankDetails();
+
+        // Check if rider has active orders waiting to be picked up
+        _checkAndPromptPickupOrders();
+
+        // If rider is currently online, verify location permission, GPS service & bank details
         final isOnline = ref.read(riderAvailabilityProvider);
         if (isOnline) {
-          final hasPerm = await RiderLocationService.instance.checkPermission();
-          if (!hasPerm && mounted) {
-            final granted = await RiderLocationService.instance.requestPermission(context);
-            if (!granted) {
-              ref.read(riderAvailabilityProvider.notifier).setOnline(false);
+          final bank = ref.read(bankDetailsProvider);
+          final hasBank = bank != null &&
+              bank.accountNumber.trim().isNotEmpty &&
+              bank.bankName.trim().isNotEmpty;
+          if (!hasBank) {
+            ref.read(riderAvailabilityProvider.notifier).setOnline(false);
+          } else {
+            final hasPerm = await RiderLocationService.instance.checkPermission();
+            if (!hasPerm && mounted) {
+              final granted = await RiderLocationService.instance.requestPermission(context);
+              if (!granted) {
+                ref.read(riderAvailabilityProvider.notifier).setOnline(false);
+              }
             }
           }
         }
@@ -78,6 +102,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (state == AppLifecycleState.detached) {
       // App is closing completely — auto update rider availability to offline
       ref.read(riderAvailabilityProvider.notifier).setOnline(false);
+    } else if (state == AppLifecycleState.resumed) {
+      // User reopened or returned to the app: recheck active pickup orders
+      hasPromptedPickupThisSession = false;
+      _checkAndPromptPickupOrders();
     }
   }
 
@@ -113,6 +141,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       elevation: 0,
       backgroundColor: sheetBg,
@@ -272,6 +301,464 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     });
   }
 
+  void _checkAndPromptBankDetails() {
+    if (hasPromptedBankThisSession || _isBankPromptOpen || _isVerificationSheetOpen) return;
+    final profile = ref.read(riderProfileProvider);
+    if (profile.displayName == 'Loading...') return;
+    final bank = ref.read(bankDetailsProvider);
+    final hasBank = bank != null &&
+        bank.accountNumber.trim().isNotEmpty &&
+        bank.bankName.trim().isNotEmpty;
+    if (!hasBank) {
+      hasPromptedBankThisSession = true;
+      _showBankPromptBottomSheet();
+    }
+  }
+
+  void _showBankPromptBottomSheet() {
+    if (_isBankPromptOpen || !mounted) return;
+    _isBankPromptOpen = true;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final purpleColor = AppTheme.primaryPurpleFor(isDark);
+    final sheetBg = isDark ? AppTheme.darkSurface : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
+    final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
+    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      elevation: 0,
+      backgroundColor: sheetBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Responsive.maxContainer(
+            context: sheetContext,
+            maxWidth: 450,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: borderColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkSurface : AppTheme.lightInputFill,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: borderColor, width: 1),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        LucideIcons.landmark,
+                        size: 36,
+                        color: purpleColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Add Bank Account Details',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppTypography.font(18),
+                      fontWeight: FontWeight.w800,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'To go live and receive weekly withdrawal disbursements for your delivery earnings, please set up your verified Nigerian bank account details.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppTypography.font(13.5),
+                      height: 1.45,
+                      color: mutedTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      context.push('/account/bank-details');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: purpleColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(LucideIcons.landmark, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Add Bank Account',
+                          style: TextStyle(
+                            fontSize: AppTypography.font(15),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 44),
+                    ),
+                    child: Text(
+                      'Maybe Later',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(14),
+                        fontWeight: FontWeight.w600,
+                        color: mutedTextColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      _isBankPromptOpen = false;
+    });
+  }
+
+  void _checkAndPromptPickupOrders([List<RiderOrder>? activeOrdersList]) {
+    if (hasPromptedPickupThisSession ||
+        _isPickupPromptOpen ||
+        _isVerificationSheetOpen ||
+        _isBankPromptOpen) {
+      return;
+    }
+
+    final activeOrders = activeOrdersList ?? ref.read(ordersProvider).active;
+    final toPickupOrders = activeOrders.where((order) {
+      if (order.stage == OrderStage.enRouteToRestaurant ||
+          order.stage == OrderStage.atRestaurant) {
+        return true;
+      }
+      final s = order.rawStatus.toLowerCase().trim();
+      return s == 'rider_assigned' ||
+          s == 'accepted' ||
+          s == 'at_restaurant' ||
+          s == 'ready_for_pickup' ||
+          s == 'order_ready';
+    }).toList();
+
+    if (toPickupOrders.isEmpty) return;
+
+    hasPromptedPickupThisSession = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_isPickupPromptOpen) {
+        _showActiveOrdersPickupBottomSheet(toPickupOrders);
+      }
+    });
+  }
+
+  void _showActiveOrdersPickupBottomSheet(List<RiderOrder> pickupOrders) {
+    if (_isPickupPromptOpen || !mounted) return;
+    _isPickupPromptOpen = true;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final purpleColor = AppTheme.primaryPurpleFor(isDark);
+    final sheetBg = isDark ? AppTheme.darkSurface : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
+    final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
+    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+
+    final count = pickupOrders.length;
+    final isMultiple = count > 1;
+
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      elevation: 0,
+      backgroundColor: sheetBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Responsive.maxContainer(
+            context: sheetContext,
+            maxWidth: 500,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: borderColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.darkSurface : AppTheme.lightInputFill,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: borderColor, width: 1),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        LucideIcons.packageCheck,
+                        size: 34,
+                        color: purpleColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF78350F) : const Color(0xFFFDE68A),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFD97706),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isMultiple ? '$count Orders To Pick Up' : 'Active Order To Pick Up',
+                          style: TextStyle(
+                            fontSize: AppTypography.font(12),
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    isMultiple ? 'Active Deliveries To Pick Up' : 'Active Delivery To Pick Up',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppTypography.font(20),
+                      fontWeight: FontWeight.w800,
+                      color: primaryTextColor,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isMultiple
+                        ? 'You have $count active deliveries assigned and waiting for store collection. Please head to the merchant locations to pick up the orders.'
+                        : 'You have an active delivery waiting for pickup. Please head over to the store to collect the order and proceed with delivery.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppTypography.font(13.5),
+                      height: 1.45,
+                      color: mutedTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Flexible(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 240),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: pickupOrders.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final order = pickupOrders[index];
+                          final pickupLoc = order.pickupAddress.isNotEmpty
+                              ? order.pickupAddress
+                              : (order.restaurantAddress.isNotEmpty
+                                  ? order.restaurantAddress
+                                  : order.restaurantName);
+                          return Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppTheme.darkSurface : AppTheme.lightInputFill,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: borderColor, width: 1),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: purpleColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    LucideIcons.store,
+                                    size: 20,
+                                    color: purpleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              order.restaurantName.isNotEmpty
+                                                  ? order.restaurantName
+                                                  : 'Merchant Store',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: AppTypography.font(14),
+                                                fontWeight: FontWeight.w700,
+                                                color: primaryTextColor,
+                                              ),
+                                            ),
+                                          ),
+                                          if (order.deliveryFee > 0)
+                                            Text(
+                                              order.deliveryFeeLabel,
+                                              style: TextStyle(
+                                                fontSize: AppTypography.font(13),
+                                                fontWeight: FontWeight.w800,
+                                                color: purpleColor,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            LucideIcons.mapPin,
+                                            size: 13,
+                                            color: mutedTextColor,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              pickupLoc,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: AppTypography.font(12),
+                                                color: mutedTextColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      context.go('/delivery');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: purpleColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(LucideIcons.arrowRight, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'View Details',
+                          style: TextStyle(
+                            fontSize: AppTypography.font(15),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 44),
+                    ),
+                    child: Text(
+                      'Dismiss',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(14),
+                        fontWeight: FontWeight.w600,
+                        color: mutedTextColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      _isPickupPromptOpen = false;
+    });
+  }
+
 
   Future<void> _declineOrder(String orderId) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -410,6 +897,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           }
         });
       }
+    });
+
+    ref.listen<BankDetails?>(bankDetailsProvider, (previous, next) {
+      final profile = ref.read(riderProfileProvider);
+      if (profile.displayName == 'Loading...') return;
+      final hasBank = next != null &&
+          next.accountNumber.trim().isNotEmpty &&
+          next.bankName.trim().isNotEmpty;
+      if (!hasPromptedBankThisSession &&
+          !_isBankPromptOpen &&
+          !_isVerificationSheetOpen &&
+          !hasBank) {
+        hasPromptedBankThisSession = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showBankPromptBottomSheet();
+          }
+        });
+      }
+    });
+
+    ref.listen<OrdersState>(ordersProvider, (previous, next) {
+      _checkAndPromptPickupOrders(next.active);
     });
 
     final profile = ref.watch(riderProfileProvider);
@@ -705,6 +1215,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                               if (v) {
                                 if (profile.verificationStatus != 'verified') {
                                   _showVerificationPromptBottomSheet();
+                                  return;
+                                }
+                                final bank = ref.read(bankDetailsProvider);
+                                final hasBank = bank != null &&
+                                    bank.accountNumber.trim().isNotEmpty &&
+                                    bank.bankName.trim().isNotEmpty;
+                                if (!hasBank) {
+                                  _showBankPromptBottomSheet();
                                   return;
                                 }
                                 final granted = await RiderLocationService.instance.requestPermission(context);

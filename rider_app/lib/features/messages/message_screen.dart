@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -55,16 +56,45 @@ class _MessageScreenState extends State<MessageScreen> {
   }
 
   int _getUnreadCount(Map<String, dynamic> chat, String userId) {
-    final unreadMap = chat['unreadCount'] as Map<String, dynamic>?;
-    if (unreadMap == null) return 0;
-    final riderId = chat['riderId']?.toString();
-    if ((riderId == null || riderId == userId) && unreadMap.containsKey('rider_unread')) {
-      final roleUnread = unreadMap['rider_unread'];
-      if (roleUnread is num) return roleUnread.toInt();
+    int unread = 0;
+    final unreadMap = chat['unreadCount'];
+    if (unreadMap is Map) {
+      final userVal = unreadMap[userId];
+      if (userVal is num && userVal > 0) {
+        unread = math.max(unread, userVal.toInt());
+      } else if (userVal is String) {
+        final parsed = int.tryParse(userVal) ?? 0;
+        if (parsed > 0) unread = math.max(unread, parsed);
+      }
+
+      final riderId = chat['riderId']?.toString();
+      if (riderId == null || riderId == userId || riderId.isEmpty) {
+        final roleVal = unreadMap['rider_unread'];
+        if (roleVal is num && roleVal > 0) {
+          unread = math.max(unread, roleVal.toInt());
+        } else if (roleVal is String) {
+          final parsed = int.tryParse(roleVal) ?? 0;
+          if (parsed > 0) unread = math.max(unread, parsed);
+        }
+      }
+    } else if (unreadMap is num && unreadMap > 0) {
+      final lastSenderId = chat['lastSenderId']?.toString() ?? chat['senderId']?.toString();
+      if (lastSenderId != userId) {
+        unread = math.max(unread, unreadMap.toInt());
+      }
     }
-    final count = unreadMap[userId];
-    if (count is num) return count.toInt();
-    return 0;
+
+    final topRider = chat['rider_unread'];
+    if (topRider is num && topRider > 0) {
+      unread = math.max(unread, topRider.toInt());
+    }
+
+    final topUid = chat['unreadCount_$userId'] ?? chat['unread_$userId'];
+    if (topUid is num && topUid > 0) {
+      unread = math.max(unread, topUid.toInt());
+    }
+
+    return unread;
   }
 
   @override

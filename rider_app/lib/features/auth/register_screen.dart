@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
 import 'auth_error_handler.dart';
@@ -25,15 +28,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _fullNameController = TextEditingController();
   final _usernameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   String _vehicleType = 'Bicycle';
   final String _selectedCountryCode = '+234';
   File? _imageFile;
   final _picker = ImagePicker();
   bool _isLoading = false;
   bool _agreeToTerms = false;
+  bool _isExistingMartFoodAccount = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailFocusNode.addListener(() {
+      if (!_emailFocusNode.hasFocus) {
+        _checkEmailStatus(showSheet: true);
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -41,6 +59,399 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _usernameController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkEmailStatus({bool showSheet = true}) async {
+    final email = _emailController.text.trim().toLowerCase();
+    if (email.isEmpty || !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      return;
+    }
+
+    try {
+      // 1. Check if rider account already exists with this email
+      final riderSnap = await FirebaseFirestore.instance
+          .collection('riders')
+          .where('email', isEqualTo: email)
+          .get();
+
+      if (riderSnap.docs.isNotEmpty) {
+        final riderData = riderSnap.docs.first.data();
+        final hasName = riderData['fullName'] != null && riderData['fullName'].toString().trim().isNotEmpty;
+        if (hasName) {
+          if (mounted && showSheet) {
+            _showExistingRiderBottomSheet(email);
+          }
+          return;
+        }
+      }
+
+      // 2. Check if this email exists on MartFood (as customer)
+      final custSnap = await FirebaseFirestore.instance
+          .collection('customers')
+          .where('email', isEqualTo: email)
+          .get();
+
+      if (custSnap.docs.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _isExistingMartFoodAccount = true;
+          });
+          if (showSheet) {
+            _showExistingAccountBottomSheet(email: email, isWrongPassword: false);
+          }
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _isExistingMartFoodAccount = false;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _showExistingAccountBottomSheet({required String email, bool isWrongPassword = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final purpleColor = AppTheme.primaryPurpleFor(isDark);
+    final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subtextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: surfaceColor,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[700] : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: purpleColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: purpleColor.withValues(alpha: 0.25),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Icon(
+                    LucideIcons.bike,
+                    color: purpleColor,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isWrongPassword ? 'Incorrect MartFood Password' : 'Existing MartFood Account',
+                  style: TextStyle(
+                    fontSize: AppTypography.font(20),
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'You already have a MartFood account. Enter your MartFood password to activate your Rider profile.',
+                  style: TextStyle(
+                    fontSize: AppTypography.font(14),
+                    color: subtextColor,
+                    height: 1.45,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      setState(() {
+                        _isExistingMartFoodAccount = true;
+                      });
+                      _passwordFocusNode.requestFocus();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: purpleColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: Text(
+                      'Enter MartFood Password',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(15),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _startForgotPasswordFlow(email);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : Colors.black87,
+                      side: BorderSide(
+                        color: isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder,
+                        width: 1.0,
+                      ),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: Text(
+                      'Forgot Password? Reset it',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(14),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    context.push('/auth/login');
+                  },
+                  child: Text(
+                    'Log in to existing account',
+                    style: TextStyle(
+                      fontSize: AppTypography.font(14),
+                      fontWeight: FontWeight.w600,
+                      color: purpleColor,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    _handleUseDifferentEmail();
+                  },
+                  child: Text(
+                    'Use a different email to register',
+                    style: TextStyle(
+                      fontSize: AppTypography.font(13),
+                      color: subtextColor,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showExistingRiderBottomSheet(String email) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final purpleColor = AppTheme.primaryPurpleFor(isDark);
+    final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subtextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: surfaceColor,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[700] : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.amber.withValues(alpha: 0.3),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: const Icon(
+                    LucideIcons.triangleAlert,
+                    color: Colors.amber,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Rider Account Already Exists',
+                  style: TextStyle(
+                    fontSize: AppTypography.font(20),
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'A Rider account is already registered with $email. Please log in directly.',
+                  style: TextStyle(
+                    fontSize: AppTypography.font(14),
+                    color: subtextColor,
+                    height: 1.45,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      context.push('/auth/login');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: purpleColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: Text(
+                      'Log in to Rider Account',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(15),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    _handleUseDifferentEmail();
+                  },
+                  child: Text(
+                    'Use a different email to register',
+                    style: TextStyle(
+                      fontSize: AppTypography.font(13),
+                      color: subtextColor,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleUseDifferentEmail() {
+    setState(() {
+      _emailController.clear();
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+      _isExistingMartFoodAccount = false;
+    });
+    _emailFocusNode.requestFocus();
+  }
+
+  Future<void> _startForgotPasswordFlow(String email) async {
+    final normEmail = email.trim().toLowerCase();
+    if (normEmail.isEmpty) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final otpCode = (Random().nextInt(900000) + 100000).toString();
+
+      await FirebaseFirestore.instance
+          .collection('password_resets')
+          .doc(normEmail)
+          .set({
+        'otp': otpCode,
+        'expiresAt': Timestamp.fromDate(
+          DateTime.now().add(const Duration(minutes: 15)),
+        ),
+      }).timeout(const Duration(seconds: 5));
+
+      final sent = await EmailService.sendPasswordResetOtp(normEmail, otpCode);
+      if (mounted) {
+        if (sent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Verification code sent to $normEmail'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        context.push('/auth/forgot-password-otp', extra: {
+          'email': normEmail,
+          'otp': otpCode,
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        AuthErrorHandler.showError(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _pickImage() async {
@@ -65,11 +476,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  void _signUp() {
+  Future<void> _signUp() async {
     final fullName = _fullNameController.text.trim();
     final username = _usernameController.text.trim();
     final phone = _phoneController.text.trim();
-    final email = _emailController.text.trim();
+    final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
 
@@ -90,12 +501,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (password.length < 6) {
+    if (!_isExistingMartFoodAccount && password.length < 6) {
       AuthErrorHandler.showError(context, 'Password must be at least 6 characters');
       return;
     }
 
-    if (password != confirmPassword) {
+    if (!_isExistingMartFoodAccount && password != confirmPassword) {
       AuthErrorHandler.showError(context, 'Passwords do not match');
       return;
     }
@@ -133,27 +544,88 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _isLoading = true;
     });
 
-    final otpCode = (Random().nextInt(9000) + 1000).toString();
-    debugPrint('[Rider Registration] Generated OTP for $email: $otpCode');
+    try {
+      // 1. Check if rider account already exists
+      final riderSnap = await FirebaseFirestore.instance
+          .collection('riders')
+          .where('email', isEqualTo: email)
+          .get();
 
-    // Attempt to send email in background
-    EmailService.sendOtpEmail(email, otpCode);
+      if (riderSnap.docs.isNotEmpty) {
+        final riderData = riderSnap.docs.first.data();
+        final hasName = riderData['fullName'] != null && riderData['fullName'].toString().trim().isNotEmpty;
+        if (hasName) {
+          setState(() {
+            _isLoading = false;
+          });
+          _showExistingRiderBottomSheet(email);
+          return;
+        }
+      }
 
-    setState(() {
-      _isLoading = false;
-    });
+      // 2. Check if existing MartFood customer account
+      bool isExisting = _isExistingMartFoodAccount;
+      if (!isExisting) {
+        final custSnap = await FirebaseFirestore.instance
+            .collection('customers')
+            .where('email', isEqualTo: email)
+            .get();
+        if (custSnap.docs.isNotEmpty) {
+          isExisting = true;
+          setState(() {
+            _isExistingMartFoodAccount = true;
+          });
+        }
+      }
 
-    if (mounted) {
-      context.push('/auth/otp', extra: {
-        'email': email,
-        'password': password,
-        'fullName': fullName,
-        'username': username,
-        'phone': fullPhoneNumber,
-        'vehicleType': _vehicleType,
-        'photoPath': _imageFile?.path,
-        'otp': otpCode,
+      // If user is existing MartFood account, test their password!
+      if (isExisting) {
+        try {
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+        } on FirebaseAuthException catch (authEx) {
+          setState(() {
+            _isLoading = false;
+          });
+          if (authEx.code == 'wrong-password' || authEx.code == 'invalid-credential') {
+            _showExistingAccountBottomSheet(email: email, isWrongPassword: true);
+            return;
+          }
+          rethrow;
+        }
+      }
+
+      final otpCode = (Random().nextInt(9000) + 1000).toString();
+      debugPrint('[Rider Registration] Generated OTP for $email: $otpCode');
+
+      EmailService.sendOtpEmail(email, otpCode);
+
+      setState(() {
+        _isLoading = false;
       });
+
+      if (mounted) {
+        context.push('/auth/otp', extra: {
+          'email': email,
+          'password': password,
+          'fullName': fullName,
+          'username': username,
+          'phone': fullPhoneNumber,
+          'vehicleType': _vehicleType,
+          'photoPath': _imageFile?.path,
+          'otp': otpCode,
+          'isExistingMartFoodAccount': isExisting,
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        AuthErrorHandler.showError(context, e);
+      }
     }
   }
 
@@ -406,6 +878,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     child: TextField(
                       controller: _emailController,
+                      focusNode: _emailFocusNode,
                       keyboardType: TextInputType.emailAddress,
                       style: TextStyle(color: textColor, fontSize: AppTypography.font(14)),
                       decoration: InputDecoration(
@@ -418,9 +891,97 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 20),
 
+                  // ── Existing MartFood Account Inline Banner ───────────────
+                  if (_isExistingMartFoodAccount) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: purpleColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: purpleColor.withValues(alpha: 0.25),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(LucideIcons.store, size: 18, color: purpleColor),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Existing MartFood Account Found',
+                                  style: TextStyle(
+                                    fontSize: AppTypography.font(14),
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'You already have a MartFood account. Enter your MartFood password to activate your Rider profile.',
+                            style: TextStyle(
+                              fontSize: AppTypography.font(13),
+                              color: isDark ? Colors.grey[300] : Colors.grey[700],
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 6,
+                            children: [
+                              GestureDetector(
+                                onTap: () => context.push('/auth/login'),
+                                child: Text(
+                                  'Log In',
+                                  style: TextStyle(
+                                    fontSize: AppTypography.font(13),
+                                    fontWeight: FontWeight.bold,
+                                    color: purpleColor,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => _startForgotPasswordFlow(_emailController.text.trim()),
+                                child: Text(
+                                  'Forgot password? Reset it',
+                                  style: TextStyle(
+                                    fontSize: AppTypography.font(13),
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green[700],
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _handleUseDifferentEmail,
+                                child: Text(
+                                  'Use a different email to register',
+                                  style: TextStyle(
+                                    fontSize: AppTypography.font(13),
+                                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // ── 7. Field 6: Password ────────────────────────────────
                   Text(
-                    'Password',
+                    _isExistingMartFoodAccount ? 'MartFood Password' : 'Password',
                     style: TextStyle(
                       fontSize: AppTypography.font(14),
                       fontWeight: FontWeight.w600,
@@ -430,7 +991,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 8),
                   _SignupPasswordTextField(
                     controller: _passwordController,
-                    hintText: 'Create password',
+                    focusNode: _passwordFocusNode,
+                    hintText: _isExistingMartFoodAccount ? 'Enter your MartFood password' : 'Create password',
                     fieldBg: fieldBg,
                     fieldBorder: fieldBorder,
                     textColor: textColor,
@@ -439,24 +1001,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 20),
 
                   // ── 8. Field 7: Confirm Password ────────────────────────
-                  Text(
-                    'Confirm Password',
-                    style: TextStyle(
-                      fontSize: AppTypography.font(14),
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
+                  if (!_isExistingMartFoodAccount) ...[
+                    Text(
+                      'Confirm Password',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(14),
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  _SignupPasswordTextField(
-                    controller: _confirmPasswordController,
-                    hintText: 'Confirm password',
-                    fieldBg: fieldBg,
-                    fieldBorder: fieldBorder,
-                    textColor: textColor,
-                    purpleColor: purpleColor,
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 8),
+                    _SignupPasswordTextField(
+                      controller: _confirmPasswordController,
+                      hintText: 'Confirm password',
+                      fieldBg: fieldBg,
+                      fieldBorder: fieldBorder,
+                      textColor: textColor,
+                      purpleColor: purpleColor,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // ── 9. Terms & Conditions Row ───────────────────────────
                   Row(
@@ -543,7 +1107,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                             ),
                             child: Text(
-                              'Sign Up',
+                              _isExistingMartFoodAccount ? 'Activate Rider Profile' : 'Sign Up',
                               style: TextStyle(
                                 fontSize: AppTypography.font(16),
                                 fontWeight: FontWeight.bold,
@@ -594,6 +1158,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 /// Helper widget for password field with toggleable eye icon
 class _SignupPasswordTextField extends StatefulWidget {
   final TextEditingController controller;
+  final FocusNode? focusNode;
   final String hintText;
   final Color fieldBg;
   final Color fieldBorder;
@@ -602,6 +1167,7 @@ class _SignupPasswordTextField extends StatefulWidget {
 
   const _SignupPasswordTextField({
     required this.controller,
+    this.focusNode,
     required this.hintText,
     required this.fieldBg,
     required this.fieldBorder,
@@ -626,6 +1192,7 @@ class _SignupPasswordTextFieldState extends State<_SignupPasswordTextField> {
       ),
       child: TextField(
         controller: widget.controller,
+        focusNode: widget.focusNode,
         obscureText: _obscureText,
         style: TextStyle(color: widget.textColor, fontSize: AppTypography.font(14)),
         decoration: InputDecoration(

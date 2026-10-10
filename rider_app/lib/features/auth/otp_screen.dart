@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
 import '../../providers/session_provider.dart';
@@ -192,7 +193,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
           } on FirebaseAuthException catch (signInEx) {
             if (signInEx.code == 'wrong-password' || signInEx.code == 'invalid-credential') {
               throw Exception(
-                'An account with this email already exists on MartFood. Please enter your existing MartFood account password to activate your Rider profile.',
+                'You already have a MartFood account. Enter your MartFood password to activate your Rider profile.',
               );
             }
             rethrow;
@@ -232,6 +233,211 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         ref.read(sessionProvider.notifier).signIn();
         resetAllRiderProviders(ref);
         context.go('/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        final errText = e.toString().toLowerCase();
+        if (errText.contains('martfood account') ||
+            errText.contains('activate your rider profile') ||
+            errText.contains('wrong-password') ||
+            errText.contains('invalid-credential')) {
+          _showExistingAccountBottomSheet();
+        } else {
+          AuthErrorHandler.showError(context, e);
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showExistingAccountBottomSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final purpleColor = AppTheme.primaryPurpleFor(isDark);
+    final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subtextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: surfaceColor,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[700] : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: purpleColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: purpleColor.withValues(alpha: 0.25),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Icon(
+                    LucideIcons.bike,
+                    color: purpleColor,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Existing MartFood Account',
+                  style: TextStyle(
+                    fontSize: AppTypography.font(20),
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'You already have a MartFood account. Enter your MartFood password to activate your Rider profile.',
+                  style: TextStyle(
+                    fontSize: AppTypography.font(14),
+                    color: subtextColor,
+                    height: 1.45,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _startForgotPasswordFlow(_email);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: purpleColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: Text(
+                      'Forgot Password? Reset it',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(15),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      context.push('/auth/login');
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : Colors.black87,
+                      side: BorderSide(
+                        color: isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder,
+                        width: 1.0,
+                      ),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: Text(
+                      'Log in to existing account',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(14),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    context.pop();
+                  },
+                  child: Text(
+                    'Use a different email to register',
+                    style: TextStyle(
+                      fontSize: AppTypography.font(13),
+                      color: subtextColor,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _startForgotPasswordFlow(String email) async {
+    final normEmail = email.trim().toLowerCase();
+    if (normEmail.isEmpty) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final otpCode = (Random().nextInt(900000) + 100000).toString();
+
+      await FirebaseFirestore.instance
+          .collection('password_resets')
+          .doc(normEmail)
+          .set({
+        'otp': otpCode,
+        'expiresAt': Timestamp.fromDate(
+          DateTime.now().add(const Duration(minutes: 15)),
+        ),
+      }).timeout(const Duration(seconds: 5));
+
+      final sent = await EmailService.sendPasswordResetOtp(normEmail, otpCode);
+      if (mounted) {
+        if (sent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Verification code sent to $normEmail'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        context.push('/auth/forgot-password-otp', extra: {
+          'email': normEmail,
+          'otp': otpCode,
+        });
       }
     } catch (e) {
       if (mounted) {

@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
+import '../../core/router/app_router.dart';
 import '../../core/theme/theme_manager.dart';
 import '../../providers/session_provider.dart';
 import '../auth/auth_error_handler.dart';
@@ -510,6 +511,9 @@ class _RiderSettingsScreenState extends ConsumerState<RiderSettingsScreen> {
                     onPressed: () async {
                       final router = GoRouter.of(context);
                       Navigator.pop(sheetContext);
+                      try {
+                        rootNavigatorKey.currentState?.popUntil((route) => route is! PopupRoute);
+                      } catch (_) {}
                       await appSignOut(ref);
                       if (mounted) {
                         router.go('/get-started');
@@ -642,6 +646,9 @@ class _RiderSettingsScreenState extends ConsumerState<RiderSettingsScreen> {
                             debugPrint('Error deleting rider account: $e');
                           }
                         }
+                        try {
+                          rootNavigatorKey.currentState?.popUntil((route) => route is! PopupRoute);
+                        } catch (_) {}
                         await appSignOut(ref);
                         if (mounted) {
                           router.go('/get-started');

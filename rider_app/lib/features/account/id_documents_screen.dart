@@ -269,6 +269,8 @@ class _IdDocumentsScreenState extends ConsumerState<IdDocumentsScreen> {
         'verificationStatus': 'pending',
         'rejectionReason': '',
         'documentsSubmittedAt': FieldValue.serverTimestamp(),
+        'verificationSubmittedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       if (mounted) {

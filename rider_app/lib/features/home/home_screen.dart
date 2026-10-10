@@ -56,7 +56,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         .snapshots();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (mounted) {
+      if (mounted && FirebaseAuth.instance.currentUser != null) {
         AppUpdateService.checkAndPromptUpdate(context);
 
         // Check if unverified rider needs to be prompted
@@ -104,8 +104,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       ref.read(riderAvailabilityProvider.notifier).setOnline(false);
     } else if (state == AppLifecycleState.resumed) {
       // User reopened or returned to the app: recheck active pickup orders
-      hasPromptedPickupThisSession = false;
-      _checkAndPromptPickupOrders();
+      if (FirebaseAuth.instance.currentUser != null) {
+        hasPromptedPickupThisSession = false;
+        _checkAndPromptPickupOrders();
+      }
     }
   }
 
@@ -117,9 +119,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   void _checkAndPromptVerification() {
+    if (FirebaseAuth.instance.currentUser == null) return;
     if (hasPromptedVerificationThisSession || _isVerificationSheetOpen) return;
     final profile = ref.read(riderProfileProvider);
-    if (profile.displayName == 'Loading...') return;
+    if (profile.displayName.trim().isEmpty || profile.displayName == 'Loading...') return;
     if (profile.verificationStatus != 'verified') {
       hasPromptedVerificationThisSession = true;
       _showVerificationPromptBottomSheet();
@@ -127,10 +130,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   void _showVerificationPromptBottomSheet() {
-    if (_isVerificationSheetOpen || !mounted) return;
+    if (_isVerificationSheetOpen || !mounted || FirebaseAuth.instance.currentUser == null) return;
+    final profile = ref.read(riderProfileProvider);
+    if (profile.displayName.trim().isEmpty || profile.displayName == 'Loading...') return;
     _isVerificationSheetOpen = true;
 
-    final profile = ref.read(riderProfileProvider);
     final status = profile.verificationStatus.toLowerCase().trim();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
@@ -302,9 +306,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   void _checkAndPromptBankDetails() {
+    if (FirebaseAuth.instance.currentUser == null) return;
     if (hasPromptedBankThisSession || _isBankPromptOpen || _isVerificationSheetOpen) return;
     final profile = ref.read(riderProfileProvider);
-    if (profile.displayName == 'Loading...') return;
+    if (profile.displayName.trim().isEmpty || profile.displayName == 'Loading...') return;
     final bank = ref.read(bankDetailsProvider);
     final hasBank = bank != null &&
         bank.accountNumber.trim().isNotEmpty &&
@@ -316,7 +321,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   void _showBankPromptBottomSheet() {
-    if (_isBankPromptOpen || !mounted) return;
+    if (_isBankPromptOpen || !mounted || FirebaseAuth.instance.currentUser == null) return;
+    final profile = ref.read(riderProfileProvider);
+    if (profile.displayName.trim().isEmpty || profile.displayName == 'Loading...') return;
     _isBankPromptOpen = true;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -451,6 +458,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   void _checkAndPromptPickupOrders([List<RiderOrder>? activeOrdersList]) {
+    if (FirebaseAuth.instance.currentUser == null) return;
     if (hasPromptedPickupThisSession ||
         _isPickupPromptOpen ||
         _isVerificationSheetOpen ||
@@ -476,14 +484,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
     hasPromptedPickupThisSession = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_isPickupPromptOpen) {
+      if (mounted && !_isPickupPromptOpen && FirebaseAuth.instance.currentUser != null) {
         _showActiveOrdersPickupBottomSheet(toPickupOrders);
       }
     });
   }
 
   void _showActiveOrdersPickupBottomSheet(List<RiderOrder> pickupOrders) {
-    if (_isPickupPromptOpen || !mounted) return;
+    if (_isPickupPromptOpen || !mounted || FirebaseAuth.instance.currentUser == null) return;
     _isPickupPromptOpen = true;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -886,13 +894,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   @override
   Widget build(BuildContext context) {
     ref.listen<RiderProfile>(riderProfileProvider, (previous, next) {
+      if (FirebaseAuth.instance.currentUser == null) return;
+      if (next.displayName.trim().isEmpty || next.displayName == 'Loading...') return;
       if (!hasPromptedVerificationThisSession &&
           !_isVerificationSheetOpen &&
-          next.displayName != 'Loading...' &&
           next.verificationStatus != 'verified') {
         hasPromptedVerificationThisSession = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
+          if (mounted && FirebaseAuth.instance.currentUser != null) {
             _showVerificationPromptBottomSheet();
           }
         });
@@ -900,8 +909,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     });
 
     ref.listen<BankDetails?>(bankDetailsProvider, (previous, next) {
+      if (FirebaseAuth.instance.currentUser == null) return;
       final profile = ref.read(riderProfileProvider);
-      if (profile.displayName == 'Loading...') return;
+      if (profile.displayName.trim().isEmpty || profile.displayName == 'Loading...') return;
       final hasBank = next != null &&
           next.accountNumber.trim().isNotEmpty &&
           next.bankName.trim().isNotEmpty;
@@ -911,7 +921,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           !hasBank) {
         hasPromptedBankThisSession = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
+          if (mounted && FirebaseAuth.instance.currentUser != null) {
             _showBankPromptBottomSheet();
           }
         });
@@ -919,6 +929,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     });
 
     ref.listen<OrdersState>(ordersProvider, (previous, next) {
+      if (FirebaseAuth.instance.currentUser == null) return;
       _checkAndPromptPickupOrders(next.active);
     });
 

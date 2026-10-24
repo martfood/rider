@@ -32,25 +32,31 @@ class OrderDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
-  // 4-digit PIN controllers and focus nodes
-  final List<TextEditingController> _pinControllers = List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> _pinFocusNodes = List.generate(4, (_) => FocusNode());
+  final TextEditingController _masterPinController = TextEditingController();
+  final FocusNode _pinFocusNode = FocusNode();
 
   bool _isSubmitting = false;
   String? _pinErrorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    _pinFocusNode.addListener(_onPinFocusChange);
+  }
+
+  void _onPinFocusChange() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
-    for (final controller in _pinControllers) {
-      controller.dispose();
-    }
-    for (final node in _pinFocusNodes) {
-      node.dispose();
-    }
+    _pinFocusNode.removeListener(_onPinFocusChange);
+    _masterPinController.dispose();
+    _pinFocusNode.dispose();
     super.dispose();
   }
 
-  String get _currentPinCode => _pinControllers.map((c) => c.text.trim()).join();
+  String get _currentPinCode => _masterPinController.text.trim();
 
   String _formatDateTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
@@ -304,16 +310,12 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       if (!mounted) return;
 
       if (!ok) {
-        for (final controller in _pinControllers) {
-          controller.clear();
-        }
+        _masterPinController.clear();
         setState(() {
           _isSubmitting = false;
           _pinErrorMessage = 'Incorrect PIN code. Ask customer for the 4-digit code.';
         });
-        if (_pinFocusNodes.isNotEmpty) {
-          _pinFocusNodes[0].requestFocus();
-        }
+        _pinFocusNode.requestFocus();
         return;
       }
 
@@ -1475,54 +1477,24 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           ),
         ],
 
-        // 4 Individual PIN Boxes
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(4, (index) {
-            final isFilled = _pinControllers[index].text.isNotEmpty;
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 5),
-              width: 40,
-              height: 46,
-              decoration: BoxDecoration(
-                color: isDark
-                    ? AppTheme.darkSurface
-                    : (isFilled ? const Color(0xFFF3E8FF).withValues(alpha: 0.6) : const Color(0xFFF8FAFC)),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _pinErrorMessage != null
-                      ? const Color(0xFFEF4444)
-                      : (isFilled
-                          ? purpleColor.withValues(alpha: 0.5)
-                          : (isDark ? AppTheme.darkBorder : const Color(0xFFE2E8F0))),
-                  width: 1,
-                ),
-              ),
-              child: Center(
-                child: Focus(
-                  onKeyEvent: (node, event) {
-                    if (event is KeyDownEvent &&
-                        event.logicalKey == LogicalKeyboardKey.backspace) {
-                      if (_pinControllers[index].text.isEmpty && index > 0) {
-                        _pinControllers[index - 1].clear();
-                        _pinFocusNodes[index - 1].requestFocus();
-                        setState(() {});
-                        return KeyEventResult.handled;
-                      }
-                    }
-                    return KeyEventResult.ignored;
-                  },
+        // 4 Individual PIN Boxes overlaying a single transparent master TextField
+        Center(
+          child: SizedBox(
+            width: 210,
+            height: 48,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Hidden master TextField that captures typing, full paste, and backspacing
+                Opacity(
+                  opacity: 0.0,
                   child: TextField(
-                    controller: _pinControllers[index],
-                    focusNode: _pinFocusNodes[index],
+                    controller: _masterPinController,
+                    focusNode: _pinFocusNode,
                     keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    maxLength: 1,
-                    style: TextStyle(
-                      fontSize: AppTypography.font(18),
-                      fontWeight: FontWeight.w800,
-                      color: purpleColor,
-                    ),
+                    maxLength: 4,
+                    autofocus: false,
+                    enableInteractiveSelection: true,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(
                       counterText: '',
@@ -1530,9 +1502,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                       contentPadding: EdgeInsets.zero,
                     ),
                     onTap: () {
-                      _pinControllers[index].selection = TextSelection(
-                        baseOffset: 0,
-                        extentOffset: _pinControllers[index].text.length,
+                      _masterPinController.selection = TextSelection.collapsed(
+                        offset: _masterPinController.text.length,
                       );
                     },
                     onChanged: (value) {
@@ -1541,21 +1512,63 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                           _pinErrorMessage = null;
                         }
                       });
-                      if (value.isNotEmpty) {
-                        if (index < 3) {
-                          _pinFocusNodes[index + 1].requestFocus();
-                        } else {
-                          _pinFocusNodes[index].unfocus();
-                        }
-                      } else if (value.isEmpty && index > 0) {
-                        _pinFocusNodes[index - 1].requestFocus();
+                      if (value.length == 4) {
+                        _pinFocusNode.unfocus();
                       }
                     },
                   ),
                 ),
-              ),
-            );
-          }),
+
+                // Visible 4 PIN display boxes
+                IgnorePointer(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (index) {
+                      final pinText = _masterPinController.text;
+                      final isFilled = index < pinText.length;
+                      final digit = isFilled ? pinText[index] : '';
+                      final isCurrentFocus = _pinFocusNode.hasFocus &&
+                          (index == pinText.length || (index == 3 && pinText.length == 4));
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
+                        width: 40,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppTheme.darkSurface
+                              : (isFilled
+                                  ? const Color(0xFFF3E8FF).withValues(alpha: 0.6)
+                                  : const Color(0xFFF8FAFC)),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _pinErrorMessage != null
+                                ? const Color(0xFFEF4444)
+                                : (isDark
+                                    ? Colors.white
+                                    : (isFilled
+                                        ? purpleColor.withValues(alpha: 0.5)
+                                        : const Color(0xFFE2E8F0))),
+                            width: isCurrentFocus ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            digit,
+                            style: TextStyle(
+                              fontSize: AppTypography.font(18),
+                              fontWeight: FontWeight.w800,
+                              color: purpleColor,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
 
         // Quick Clear PIN Action
@@ -1563,13 +1576,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           const SizedBox(height: 10),
           GestureDetector(
             onTap: () {
-              for (final c in _pinControllers) {
-                c.clear();
-              }
+              _masterPinController.clear();
               setState(() {
                 _pinErrorMessage = null;
               });
-              _pinFocusNodes[0].requestFocus();
+              _pinFocusNode.requestFocus();
             },
             child: Text(
               'Clear PIN',

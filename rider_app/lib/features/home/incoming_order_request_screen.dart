@@ -329,7 +329,6 @@ class _IncomingOrderRequestScreenState
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
 
     final restaurantName = data['restaurantName'] as String? ?? 'Restaurant';
-    final restaurantAddress = data['restaurantAddress'] as String? ?? 'Pickup Location';
     final customerAddress = data['customerAddress'] as String? ?? data['dropoffAddress'] as String? ?? 'Delivery Location';
     final logoUrl = (data['logoUrl'] ??
             data['vendorLogo'] ??
@@ -392,14 +391,14 @@ class _IncomingOrderRequestScreenState
                         Icon(LucideIcons.package, size: 12, color: purpleColor),
                         const SizedBox(width: 4),
                         Expanded(
-                          child: Text(
-                            restaurantAddress,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          child: _VendorAddressText(
+                            data: data,
                             style: TextStyle(
                               fontSize: AppTypography.font(12),
                               color: mutedTextColor,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -440,15 +439,15 @@ class _IncomingOrderRequestScreenState
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      restaurantAddress,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    _VendorAddressText(
+                      data: data,
                       style: TextStyle(
                         fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                         fontWeight: FontWeight.w700,
                         color: primaryTextColor,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -810,5 +809,84 @@ class _VendorDistanceText extends StatelessWidget {
         cos(lat1 * (pi / 180.0)) * cos(lat2 * (pi / 180.0)) * sin(dLon / 2) * sin(dLon / 2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return r * c;
+  }
+}
+
+/// Dynamic Vendor Address with Firestore lookup & caching
+class _VendorAddressText extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final TextStyle style;
+  final int maxLines;
+  final TextOverflow overflow;
+
+  const _VendorAddressText({
+    required this.data,
+    required this.style,
+    this.maxLines = 1,
+    this.overflow = TextOverflow.ellipsis,
+  });
+
+  static final Map<String, String> _vendorAddrCache = {};
+
+  static String? extractAddress(Map<String, dynamic> data) {
+    for (final key in [
+      'restaurantAddress',
+      'pickupAddress',
+      'vendorAddress',
+      'address',
+      'storeAddress',
+      'businessAddress',
+    ]) {
+      final val = data[key]?.toString().trim() ?? '';
+      if (val.isNotEmpty && val.toLowerCase() != 'pickup location') {
+        return val;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final direct = extractAddress(data);
+    if (direct != null) {
+      return Text(direct, style: style, maxLines: maxLines, overflow: overflow);
+    }
+
+    final vendorId = (data['vendorId'] ?? data['merchantId'] ?? data['restaurantId'] ?? '').toString();
+    if (vendorId.isNotEmpty && _vendorAddrCache.containsKey(vendorId)) {
+      return Text(_vendorAddrCache[vendorId]!, style: style, maxLines: maxLines, overflow: overflow);
+    }
+
+    if (vendorId.isNotEmpty) {
+      return FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance.collection('vendors').doc(vendorId).get(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final vData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+            final bProf = vData['businessProfile'] as Map<String, dynamic>?;
+            final pProf = vData['pendingBusinessProfile'] as Map<String, dynamic>?;
+
+            final addr = (bProf?['address'] ??
+                    bProf?['businessAddress'] ??
+                    pProf?['address'] ??
+                    pProf?['businessAddress'] ??
+                    vData['address'] ??
+                    vData['businessAddress'] ??
+                    vData['location'] ??
+                    '')
+                .toString()
+                .trim();
+
+            if (addr.isNotEmpty && addr.toLowerCase() != 'null') {
+              _vendorAddrCache[vendorId] = addr;
+              return Text(addr, style: style, maxLines: maxLines, overflow: overflow);
+            }
+          }
+          return Text('Pickup Location', style: style, maxLines: maxLines, overflow: overflow);
+        },
+      );
+    }
+
+    return Text('Pickup Location', style: style, maxLines: maxLines, overflow: overflow);
   }
 }

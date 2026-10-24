@@ -259,6 +259,7 @@ class OrdersNotifier extends Notifier<OrdersState> {
 
         tx.update(orderRef, {
           'status': 'delivered',
+          'deliveredAt': FieldValue.serverTimestamp(),
           'timeline.deliveredAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });

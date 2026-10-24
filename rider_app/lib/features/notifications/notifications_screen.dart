@@ -89,8 +89,24 @@ class NotificationsScreen extends StatelessWidget {
         'iconColor': isDark ? const Color(0xFFC084FC) : const Color(0xFF7C3AED),
         'bgColor': isDark ? const Color(0xFF3B0764) : const Color(0xFFF3E8FF),
       };
+    } else if (lowerTitle.contains('review') ||
+        lowerTitle.contains('rating') ||
+        type == 'rider_review' ||
+        type == 'review') {
+      return {
+        'icon': LucideIcons.star,
+        'iconColor': isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+        'bgColor': isDark ? const Color(0xFF451A03) : const Color(0xFFFFFBEB),
+      };
+    } else if (lowerTitle.contains('message') ||
+        type == 'chat_message' ||
+        type == 'message') {
+      return {
+        'icon': LucideIcons.messageSquare,
+        'iconColor': isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB),
+        'bgColor': isDark ? const Color(0xFF172554) : const Color(0xFFEFF6FF),
+      };
     } else if (lowerTitle.contains('support') ||
-        lowerTitle.contains('message') ||
         type == 'support_chat') {
       return {
         'icon': LucideIcons.headphones,
@@ -121,6 +137,30 @@ class NotificationsScreen extends StatelessWidget {
 
     final orderId = (data['orderId'] ?? '').toString();
     final type = (data['type'] ?? '').toString();
+
+    // 1. Chat message navigation
+    if (type == 'chat_message' || type == 'message' || data.containsKey('chatId')) {
+      final senderId = (data['senderId'] ?? data['customerId'] ?? data['userId'] ?? '').toString();
+      final senderName = (data['senderName'] ?? data['customerName'] ?? 'Customer').toString();
+      final senderPhoto = (data['senderPhoto'] ?? data['customerPhoto'] ?? '').toString();
+      final chatId = (data['chatId'] ?? '').toString();
+
+      context.push('/conversation', extra: {
+        'id': senderId,
+        'name': senderName,
+        'photo': senderPhoto,
+        'chatId': chatId.isNotEmpty ? chatId : null,
+        'orderId': orderId.isNotEmpty ? orderId : null,
+        'isVendor': false,
+      });
+      return;
+    }
+
+    // 2. Rider review navigation
+    if (type == 'rider_review' || type == 'review') {
+      context.push('/account/reviews');
+      return;
+    }
 
     if (orderId.isNotEmpty) {
       if (type == 'order_broadcast') {

@@ -52,6 +52,26 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
   String get _currentPinCode => _pinControllers.map((c) => c.text.trim()).join();
 
+  String _formatDateTime(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+    DateTime dt;
+    if (timestamp is Timestamp) {
+      dt = timestamp.toDate();
+    } else if (timestamp is DateTime) {
+      dt = timestamp;
+    } else if (timestamp is String) {
+      dt = DateTime.tryParse(timestamp) ?? DateTime.now();
+    } else {
+      return 'N/A';
+    }
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final monthStr = months[dt.month - 1];
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+    final minStr = dt.minute.toString().padLeft(2, '0');
+    return '${dt.day} $monthStr ${dt.year}, $hour:$minStr $ampm';
+  }
+
   Future<void> _setStage(OrderStage stage) async {
     setState(() => _isSubmitting = true);
     try {
@@ -981,6 +1001,110 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             ),
                           ],
                         ),
+                      ),
+                      const SectionDivider(
+                        margin: EdgeInsets.only(left: -18, right: -18, top: 16, bottom: 16),
+                      ),
+
+                      // ── SECTION: Order & Delivered Date & Time ─────────────
+                      Builder(
+                        builder: (context) {
+                          final rawStatus = (data['status'] ?? effectiveOrder.stage.name).toString().toLowerCase();
+                          final isDelivered = rawStatus == 'delivered' || rawStatus == 'completed' || effectiveOrder.stage == OrderStage.delivered;
+                          final dynamic orderCreatedAt = data['createdAt'] ??
+                              data['orderDate'] ??
+                              (data['timeline'] is Map ? data['timeline']['placedAt'] : null);
+                          final dynamic deliveredAt = data['deliveredAt'] ??
+                              (data['timeline'] is Map ? data['timeline']['deliveredAt'] : null);
+
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: borderColor, width: 1),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: purpleColor.withValues(alpha: 0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(LucideIcons.calendarClock, size: 16, color: purpleColor),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Order Timeline',
+                                      style: TextStyle(
+                                        fontSize: AppTypography.font(15),
+                                        fontWeight: FontWeight.w700,
+                                        color: primaryTextColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Order Date & Time',
+                                      style: TextStyle(
+                                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                        fontWeight: FontWeight.w500,
+                                        color: mutedTextColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatDateTime(orderCreatedAt),
+                                      style: TextStyle(
+                                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                        fontWeight: FontWeight.w600,
+                                        color: primaryTextColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (isDelivered || deliveredAt != null) ...[
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(LucideIcons.circleCheck, size: 15, color: Color(0xFF10B981)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Delivered Date & Time',
+                                            style: TextStyle(
+                                              fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                              fontWeight: FontWeight.w500,
+                                              color: mutedTextColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        _formatDateTime(deliveredAt ?? data['updatedAt']),
+                                        style: TextStyle(
+                                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF10B981),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
                       ),
                       const SectionDivider(
                         margin: EdgeInsets.only(left: -18, right: -18, top: 16, bottom: 16),

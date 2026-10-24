@@ -331,7 +331,6 @@ class _OrderRequestDetailScreenState
 
           final items = (data['items'] as List<dynamic>?) ?? [];
           final restaurantName = (data['restaurantName'] ?? 'Restaurant').toString();
-          final restaurantAddress = (data['restaurantAddress'] ?? data['pickupAddress'] ?? 'Pickup Location').toString();
           final customerName = (data['customerName'] ?? data['recipientName'] ?? 'Customer').toString();
           final customerPhone = (data['customerPhone'] ?? data['recipientPhone'] ?? data['phone'] ?? '').toString();
           final customerAddress = ((data['deliveryAddress'] is Map ? data['deliveryAddress']['address'] : null) ??
@@ -584,8 +583,8 @@ class _OrderRequestDetailScreenState
                                               ),
                                             ),
                                             const SizedBox(height: 2),
-                                            Text(
-                                              restaurantAddress,
+                                            _VendorAddressText(
+                                              data: data,
                                               style: TextStyle(
                                                 fontSize: AppTypography.font(AppFontSizes.bodySmall),
                                                 fontWeight: FontWeight.w500,
@@ -1031,5 +1030,80 @@ class _OrderRequestDetailScreenState
         ),
       ),
     );
+  }
+}
+
+/// Dynamic Vendor Address with Firestore lookup & caching
+class _VendorAddressText extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final TextStyle style;
+
+  const _VendorAddressText({
+    required this.data,
+    required this.style,
+  });
+
+  static final Map<String, String> _vendorAddrCache = {};
+
+  static String? extractAddress(Map<String, dynamic> data) {
+    for (final key in [
+      'restaurantAddress',
+      'pickupAddress',
+      'vendorAddress',
+      'address',
+      'storeAddress',
+      'businessAddress',
+    ]) {
+      final val = data[key]?.toString().trim() ?? '';
+      if (val.isNotEmpty && val.toLowerCase() != 'pickup location') {
+        return val;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final direct = extractAddress(data);
+    if (direct != null) {
+      return Text(direct, style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
+    }
+
+    final vendorId = (data['vendorId'] ?? data['merchantId'] ?? data['restaurantId'] ?? '').toString();
+    if (vendorId.isNotEmpty && _vendorAddrCache.containsKey(vendorId)) {
+      return Text(_vendorAddrCache[vendorId]!, style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
+    }
+
+    if (vendorId.isNotEmpty) {
+      return FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance.collection('vendors').doc(vendorId).get(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final vData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+            final bProf = vData['businessProfile'] as Map<String, dynamic>?;
+            final pProf = vData['pendingBusinessProfile'] as Map<String, dynamic>?;
+
+            final addr = (bProf?['address'] ??
+                    bProf?['businessAddress'] ??
+                    pProf?['address'] ??
+                    pProf?['businessAddress'] ??
+                    vData['address'] ??
+                    vData['businessAddress'] ??
+                    vData['location'] ??
+                    '')
+                .toString()
+                .trim();
+
+            if (addr.isNotEmpty && addr.toLowerCase() != 'null') {
+              _vendorAddrCache[vendorId] = addr;
+              return Text(addr, style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
+            }
+          }
+          return Text('Pickup Location', style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
+        },
+      );
+    }
+
+    return Text('Pickup Location', style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
   }
 }

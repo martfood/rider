@@ -197,13 +197,450 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: const Color(0xFFDC2626),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  void _showUnableToDeliverBottomSheet(
+    BuildContext context,
+    Map<String, dynamic> data,
+    bool isDark,
+    Color purpleColor,
+  ) {
+    String selectedReason = 'Vehicle breakdown / flat tire';
+    bool goOffline = true;
+    bool isUnassigning = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightInputFill,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final primaryTextColor = isDark ? Colors.white : Colors.black87;
+            final mutedTextColor = AppTheme.mutedTextColorFor(isDark);
+            final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+            final cardBg = isDark ? AppTheme.darkSurface : Colors.white;
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 12,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Pull Handle
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[700] : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDark
+                                ? AppTheme.darkSurface
+                                : Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                            border: Border.all(
+                              color: isDark
+                                  ? AppTheme.darkBorder
+                                  : Theme.of(context).colorScheme.error.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            LucideIcons.triangleAlert,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Report Issue / Unassign Delivery',
+                                style: TextStyle(
+                                  fontSize: AppTypography.font(16),
+                                  fontWeight: FontWeight.w800,
+                                  color: primaryTextColor,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Prior to pickup from restaurant',
+                                style: TextStyle(
+                                  fontSize: AppTypography.font(AppFontSizes.caption),
+                                  fontWeight: FontWeight.w500,
+                                  color: mutedTextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Notice box
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: borderColor, width: 1),
+                      ),
+                      child: Text(
+                        'If your vehicle broke down or you cannot collect this order, unassigning allows the vendor to immediately dispatch another rider so the customer receives their order without delay.',
+                        style: TextStyle(
+                          fontSize: AppTypography.font(12),
+                          color: mutedTextColor,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Text(
+                      'Select Reason',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(13),
+                        fontWeight: FontWeight.w700,
+                        color: primaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    ...[
+                      'Vehicle breakdown / flat tire',
+                      'Accident / physical emergency',
+                      'Severe traffic / delay',
+                      'Other personal emergency',
+                    ].map((reason) {
+                      final isSelected = selectedReason == reason;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: InkWell(
+                          onTap: () {
+                            setSheetState(() => selectedReason = reason);
+                          },
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected ? purpleColor : borderColor,
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? LucideIcons.circleDot
+                                      : LucideIcons.circle,
+                                  size: 18,
+                                  color: isSelected
+                                      ? purpleColor
+                                      : mutedTextColor,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    reason,
+                                    style: TextStyle(
+                                      fontSize: AppTypography.font(13),
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? purpleColor
+                                          : primaryTextColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 8),
+
+                    // Left-aligned Checkbox for Going Offline
+                    InkWell(
+                      onTap: () {
+                        setSheetState(() => goOffline = !goOffline);
+                      },
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: goOffline,
+                              onChanged: (val) {
+                                setSheetState(() => goOffline = val ?? true);
+                              },
+                              activeColor: purpleColor,
+                              checkColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Go offline while resolving issue (stops new broadcasts)',
+                              style: TextStyle(
+                                fontSize: AppTypography.font(12),
+                                fontWeight: FontWeight.w600,
+                                color: primaryTextColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isUnassigning
+                                ? null
+                                : () => Navigator.of(sheetContext).pop(),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: borderColor, width: 1),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: Text(
+                              'Keep Delivery',
+                              style: TextStyle(
+                                fontSize: AppTypography.font(13),
+                                fontWeight: FontWeight.w700,
+                                color: primaryTextColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isUnassigning
+                                ? null
+                                : () async {
+                                    setSheetState(() => isUnassigning = true);
+                                    await _handleRiderUnassign(
+                                      sheetContext: sheetContext,
+                                      data: data,
+                                      reason: selectedReason,
+                                      goOffline: goOffline,
+                                    );
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.error,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: isUnassigning
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    'Confirm Unassign',
+                                    style: TextStyle(
+                                      fontSize: AppTypography.font(13),
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _handleRiderUnassign({
+    required BuildContext sheetContext,
+    required Map<String, dynamic> data,
+    required String reason,
+    required bool goOffline,
+  }) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final profile = ref.read(riderProfileProvider);
+    final orderRef = FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
+    final riderRef = FirebaseFirestore.instance.collection('riders').doc(uid);
+    final presenceRef = FirebaseFirestore.instance.collection('rider_presence').doc(uid);
+
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+
+      // 1. Update order
+      batch.update(orderRef, {
+        'riderId': null,
+        'riderName': null,
+        'riderPhone': null,
+        'riderPhotoUrl': null,
+        'riderAssignedAt': null,
+        'status': 'ready_for_pickup',
+        'broadcastStatus': 'unassigned',
+        'unassignedAt': FieldValue.serverTimestamp(),
+        'unassignedBy': 'rider',
+        'unassignReason': reason,
+        'excludedRiderIds': FieldValue.arrayUnion([uid]),
+        'declinedRiders': FieldValue.arrayUnion([uid]),
+      });
+
+      // 2. Update rider doc
+      final riderUpdates = <String, dynamic>{
+        'activeOrderId': null,
+        'currentOrderId': null,
+      };
+      if (goOffline) {
+        riderUpdates['status'] = 'offline';
+      }
+      batch.set(riderRef, riderUpdates, SetOptions(merge: true));
+
+      // 3. Update rider presence if going offline
+      if (goOffline) {
+        batch.set(
+          presenceRef,
+          {
+            'isOnline': false,
+            'status': 'offline',
+            'lastSeen': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+
+      await batch.commit();
+
+      // Send Push to Vendor
+      final vendorId = (data['vendorId'] ?? data['restaurantId'])?.toString();
+      final orderShort = (data['orderNumber'] ?? widget.orderId).toString().replaceAll('#', '');
+      final displayId = orderShort.length > 6 ? orderShort.substring(orderShort.length - 6).toUpperCase() : orderShort.toUpperCase();
+      final riderDisplayName = profile.displayName.isNotEmpty ? profile.displayName : 'Assigned Rider';
+
+      if (vendorId != null && vendorId.isNotEmpty) {
+        try {
+          await NotificationService.sendPushToVendor(
+            vendorId: vendorId,
+            title: 'Rider Unassigned from Order ⚠️',
+            body: '$riderDisplayName was unable to deliver Order #$displayId ($reason). Please reassign.',
+            data: {
+              'orderId': widget.orderId.replaceAll('#', ''),
+              'type': 'rider_unassigned',
+              'reason': reason,
+            },
+          );
+        } catch (e) {
+          debugPrint('Error sending push to vendor: $e');
+        }
+      }
+
+      // Send Push to Customer
+      final customerId = (data['customerId'] ?? data['userId'])?.toString();
+      if (customerId != null && customerId.isNotEmpty) {
+        try {
+          await NotificationService.sendPushToCustomer(
+            customerId: customerId,
+            title: 'Delivery Update 🚴',
+            body: 'We are finding a new rider for your order #$displayId.',
+            data: {
+              'orderId': widget.orderId.replaceAll('#', ''),
+              'type': 'order_status',
+              'status': 'ready_for_pickup',
+            },
+          );
+        } catch (e) {
+          debugPrint('Error sending push to customer: $e');
+        }
+      }
+
+      if (sheetContext.mounted) {
+        Navigator.of(sheetContext).pop();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('You have unassigned yourself from Order #$displayId ($reason).'),
+            backgroundColor: AppTheme.primaryPurpleFor(Theme.of(context).brightness == Brightness.dark),
+          ),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      debugPrint('Error unassigning rider: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to unassign: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
       }
     }
   }
@@ -808,6 +1245,56 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                       ),
                               ),
                             ),
+
+                            if (!isUnclaimed &&
+                                (effectiveOrder.stage == OrderStage.enRouteToRestaurant ||
+                                 effectiveOrder.stage == OrderStage.atRestaurant)) ...[
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 44,
+                                child: OutlinedButton(
+                                  onPressed: _isSubmitting
+                                      ? null
+                                      : () => _showUnableToDeliverBottomSheet(
+                                            context,
+                                            data,
+                                            isDark,
+                                            purpleColor,
+                                          ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Theme.of(context).colorScheme.error,
+                                    side: BorderSide(
+                                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.35),
+                                      width: 1,
+                                    ),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        LucideIcons.triangleAlert,
+                                        size: 16,
+                                        color: Theme.of(context).colorScheme.error,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Unable to Deliver / Report Issue',
+                                        style: TextStyle(
+                                          fontSize: AppTypography.font(13),
+                                          fontWeight: FontWeight.w700,
+                                          color: Theme.of(context).colorScheme.error,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

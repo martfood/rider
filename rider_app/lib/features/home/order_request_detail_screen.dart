@@ -450,7 +450,7 @@ class _OrderRequestDetailScreenState
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // ── Card 1: Estimated Earnings & Distance ───────────────
+                            // â”€â”€ Card 1: Estimated Earnings & Distance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(20),
@@ -657,7 +657,7 @@ class _OrderRequestDetailScreenState
                             ),
                             const SizedBox(height: 16),
 
-                            // ── Card 2: Pickup & Dropoff Stepper ────────────────────
+                            // â”€â”€ Card 2: Pickup & Dropoff Stepper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(20),
@@ -836,7 +836,7 @@ class _OrderRequestDetailScreenState
                             ),
                             const SizedBox(height: 16),
 
-                            // ── Card 3: Order Items & Subtotal ──────────────────────
+                            // â”€â”€ Card 3: Order Items & Subtotal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(20),
@@ -962,7 +962,7 @@ class _OrderRequestDetailScreenState
                                               ),
                                             ),
                                             Text(
-                                              '₦${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                                              'â‚¦${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                                               style: TextStyle(
                                                 fontSize:
                                                     AppTypography.font(14),
@@ -1001,7 +1001,7 @@ class _OrderRequestDetailScreenState
                                           ),
                                         ),
                                         Text(
-                                          '₦${totalAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                                          'â‚¦${totalAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                                           style: TextStyle(
                                             fontSize: AppTypography.font(15),
                                             fontWeight: FontWeight.w800,
@@ -1016,7 +1016,7 @@ class _OrderRequestDetailScreenState
                             ),
                             const SizedBox(height: 16),
 
-                            // ── Card 4: Special Instructions Note ───────────────────
+                            // â”€â”€ Card 4: Special Instructions Note â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                             if (customerNote.isNotEmpty)
                               Container(
                                 width: double.infinity,
@@ -1061,7 +1061,7 @@ class _OrderRequestDetailScreenState
                       ),
                     ),
 
-                    // ── Bottom Action Controls ──────────────────────────────
+                    // â”€â”€ Bottom Action Controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 14),

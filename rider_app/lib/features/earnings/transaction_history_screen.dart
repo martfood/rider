@@ -115,7 +115,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Realtime Transaction Stream ────────────────────────────
+                  // â”€â”€ Realtime Transaction Stream â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
@@ -231,8 +231,13 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                     orderDocs[index].data() as Map<String, dynamic>;
                                 final orderId = orderDocs[index].id;
                                 final deliveryFee =
-                                    (orderData['deliveryFee'] as num?) ?? 0;
+                                    (orderData['deliveryFee'] as num?)?.toDouble() ?? 0.0;
+                                final riderEarning = (orderData['riderEarning'] as num?)?.toDouble() ??
+                                    (orderData['commissionPercent'] is num
+                                        ? deliveryFee * (1.0 - ((orderData['commissionPercent'] as num).toDouble() / 100.0))
+                                        : deliveryFee);
                                 final timestamp = orderData['timeline']?['deliveredAt'] ??
+                                    orderData['deliveredAt'] ??
                                     orderData['createdAt'];
                                 final timeStr = _formatTimestamp(timestamp);
 
@@ -241,7 +246,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                   title: 'Delivery Earning',
                                   description: 'Order #$orderId',
                                   time: timeStr,
-                                  amount: '+₦${_formatCurrency(deliveryFee)}',
+                                  amount: '+₦${_formatCurrency(riderEarning)}',
                                   type: 'Delivery',
                                   isExpense: false,
                                   icon: LucideIcons.packageCheck,

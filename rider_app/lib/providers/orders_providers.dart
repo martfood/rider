@@ -75,7 +75,9 @@ class OrdersNotifier extends Notifier<OrdersState> {
       for (final doc in docs) {
         final data = doc.data() as Map<String, dynamic>;
         final status = (data['status'] ?? '').toString();
-        if (status == 'cancelled' || status == 'pending' || status == 'preparing') {
+        if (status == 'cancelled' ||
+            status == 'pending' ||
+            status == 'preparing') {
           continue;
         }
 
@@ -104,36 +106,42 @@ class OrdersNotifier extends Notifier<OrdersState> {
       final orderIndex = state.active.indexWhere((o) => o.id == id);
       if (orderIndex >= 0) {
         final order = state.active[orderIndex];
-        
-        final orderSnap = await FirebaseFirestore.instance.collection('orders').doc(id).get();
+
+        final orderSnap =
+            await FirebaseFirestore.instance.collection('orders').doc(id).get();
         if (orderSnap.exists) {
           final orderData = orderSnap.data();
-          final customerId = (orderData?['customerId'] ?? orderData?['userId'])?.toString();
-          
+          final customerId =
+              (orderData?['customerId'] ?? orderData?['userId'])?.toString();
+
           if (customerId != null && customerId.isNotEmpty) {
             String title = '';
             String body = '';
-            
+
             switch (status) {
               case 'rider_assigned':
-                final riderName = (orderData?['riderName'] ?? 'Your rider').toString();
+                final riderName =
+                    (orderData?['riderName'] ?? 'Your rider').toString();
                 title = 'Rider Assigned!';
                 body = '$riderName has been assigned to deliver your order.';
                 break;
               case 'at_restaurant':
                 title = 'Rider at Restaurant';
-                body = 'Your rider has arrived at the restaurant to pick up your order.';
+                body =
+                    'Your rider has arrived at the restaurant to pick up your order.';
                 break;
               case 'in_transit':
                 title = 'Order in Transit!';
-                body = 'Your rider is on the way with your order from ${order.restaurantName}.';
+                body =
+                    'Your rider is on the way with your order from ${order.restaurantName}.';
                 break;
               case 'arrived':
                 title = 'Order has Arrived!';
-                body = 'Your rider is at your location. Please share delivery PIN: ${order.deliveryCode}.';
+                body =
+                    'Your rider is at your location. Please share delivery PIN: ${order.deliveryCode}.';
                 break;
             }
-            
+
             if (title.isNotEmpty) {
               await NotificationService.sendPushToCustomer(
                 customerId: customerId,
@@ -173,7 +181,8 @@ class OrdersNotifier extends Notifier<OrdersState> {
     // If order has an assigned PIN, verify code against it.
     // If order has no PIN or empty PIN in database, accept any 4-digit code provided.
     if (expectedPin.isNotEmpty && expectedPin != code.trim()) {
-      debugPrint('[tryCompleteWithCode] PIN mismatch. Expected: $expectedPin, got: $code');
+      debugPrint(
+          '[tryCompleteWithCode] PIN mismatch. Expected: $expectedPin, got: $code');
       return false;
     }
 
@@ -184,7 +193,8 @@ class OrdersNotifier extends Notifier<OrdersState> {
         if (!snap.exists) return;
         final data = snap.data() as Map<String, dynamic>;
 
-        final settingsRef = firestore.collection('settings').doc('rider_settings');
+        final settingsRef =
+            firestore.collection('settings').doc('rider_settings');
         final settingsSnap = await tx.get(settingsRef);
 
         final vendorId = (data['vendorId'] ?? '').toString();
@@ -201,8 +211,20 @@ class OrdersNotifier extends Notifier<OrdersState> {
 
         final vendorRef = firestore.collection('vendors').doc(vendorId);
         DocumentSnapshot? vendorSnap;
-        if (!alreadyCredited && paymentStatus == 'paid' && vendorId.isNotEmpty && subtotal > 0) {
+        if (!alreadyCredited &&
+            paymentStatus == 'paid' &&
+            vendorId.isNotEmpty &&
+            subtotal > 0) {
           vendorSnap = await tx.get(vendorRef);
+        }
+
+        final riderId =
+            (data['riderId'] ?? FirebaseAuth.instance.currentUser?.uid ?? '')
+                .toString();
+        final riderRef = firestore.collection('riders').doc(riderId);
+        DocumentSnapshot? riderSnap;
+        if (riderId.isNotEmpty) {
+          riderSnap = await tx.get(riderRef);
         }
 
         // 2. NOW COMPUTE AND PERFORM WRITES
@@ -213,31 +235,79 @@ class OrdersNotifier extends Notifier<OrdersState> {
           if (rawComm is num) {
             commissionPercent = rawComm.toDouble();
           } else {
-            commissionPercent = double.tryParse(rawComm?.toString() ?? '') ?? 0.0;
+            commissionPercent =
+                double.tryParse(rawComm?.toString() ?? '') ?? 0.0;
           }
         }
         if (commissionPercent < 0) commissionPercent = 0.0;
         if (commissionPercent > 100) commissionPercent = 100.0;
 
         double deliveryFee = 0.0;
-        final rawDeliveryFee = data['deliveryFee'];
+        final rawDeliveryFee = data['deliveryFee'] ?? data['fee'];
         if (rawDeliveryFee is num) {
           deliveryFee = rawDeliveryFee.toDouble();
         } else {
-          deliveryFee = double.tryParse(rawDeliveryFee?.toString() ?? '') ?? 0.0;
+          deliveryFee =
+              double.tryParse(rawDeliveryFee?.toString() ?? '') ?? 0.0;
         }
 
-        final riderEarning = deliveryFee * (1.0 - (commissionPercent / 100.0));
-        final riderId = (data['riderId'] ?? FirebaseAuth.instance.currentUser?.uid ?? '').toString();
+        final commissionDeducted = deliveryFee * (commissionPercent / 100.0);
+        final riderEarning = deliveryFee - commissionDeducted;
+        final riderAlreadyCredited = data['riderEarningsCredited'] == true;
 
-        if (riderId.isNotEmpty && riderEarning > 0) {
-          final riderRef = firestore.collection('riders').doc(riderId);
-          tx.update(riderRef, {
+        if (!riderAlreadyCredited && riderId.isNotEmpty && riderEarning > 0) {
+          final riderDataToUpdate = <String, dynamic>{
             'walletBalance': FieldValue.increment(riderEarning),
             'completedOrders': FieldValue.increment(1),
             'activeOrderId': FieldValue.delete(),
+            'currentOrderId': FieldValue.delete(),
+            'status': 'available',
+          };
+
+          if (riderSnap != null && riderSnap.exists) {
+            tx.update(riderRef, riderDataToUpdate);
+          } else {
+            tx.set(
+              riderRef,
+              {
+                ...riderDataToUpdate,
+                'walletBalance': riderEarning,
+                'completedOrders': 1,
+              },
+              SetOptions(merge: true),
+            );
+          }
+
+          final orderNumber = (data['orderNumber'] ?? id).toString();
+          final shortId = orderNumber.length > 8
+              ? orderNumber.substring(0, 8).toUpperCase()
+              : orderNumber.toUpperCase();
+          final restaurantName =
+              (data['restaurantName'] ?? data['vendorName'] ?? 'Food Delivery')
+                  .toString();
+
+          // Write directly to riders/{riderId}/transactions so earnings and history screens show exact earning
+          final riderTxnRef =
+              riderRef.collection('transactions').doc('${id}_earning');
+          tx.set(riderTxnRef, {
+            'id': '${id}_earning',
+            'orderId': id,
+            'orderNumber': orderNumber,
+            'amount': riderEarning,
+            'grossDeliveryFee': deliveryFee,
+            'commissionPercent': commissionPercent,
+            'commissionDeducted': commissionDeducted,
+            'title': '$restaurantName (#$shortId)',
+            'description': commissionPercent > 0
+                ? 'Delivery earning (₦${deliveryFee.toStringAsFixed(0)} less ${commissionPercent.toStringAsFixed(0)}% commission)'
+                : 'Delivery earning',
+            'type': 'Delivery',
+            'isExpense': false,
+            'createdAt': FieldValue.serverTimestamp(),
+            'timestamp': FieldValue.serverTimestamp(),
           });
 
+          // Also record in central ledger_entries for administrative reporting
           final parts = riderEarning.toStringAsFixed(2).split('.');
           final whole = parts[0].replaceAllMapped(
             RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
@@ -248,11 +318,14 @@ class OrdersNotifier extends Notifier<OrdersState> {
           final ledgerRef = firestore.collection('ledger_entries').doc();
           tx.set(ledgerRef, {
             'riderId': riderId,
+            'orderId': id,
             'kind': 'credit',
             'title': 'Delivery Earning',
             'subtitle': 'Order #$id',
             'dateLabel': 'Today',
             'amountLabel': '+₦$formattedEarning',
+            'commissionPercent': commissionPercent,
+            'commissionDeducted': commissionDeducted,
             'createdAt': FieldValue.serverTimestamp(),
           });
         }
@@ -262,6 +335,10 @@ class OrdersNotifier extends Notifier<OrdersState> {
           'deliveredAt': FieldValue.serverTimestamp(),
           'timeline.deliveredAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
+          'riderEarning': riderEarning,
+          'commissionPercent': commissionPercent,
+          'commissionDeducted': commissionDeducted,
+          'riderEarningsCredited': true,
         });
 
         if (alreadyCredited) return;
@@ -294,21 +371,28 @@ class OrdersNotifier extends Notifier<OrdersState> {
     }
 
     try {
-      final orderSnap = await FirebaseFirestore.instance.collection('orders').doc(id).get();
+      final orderSnap =
+          await FirebaseFirestore.instance.collection('orders').doc(id).get();
       if (orderSnap.exists) {
         final orderData = orderSnap.data();
         final customerId = orderData?['customerId'] as String?;
         final customerEmail = orderData?['customerEmail'] as String?;
         final customerName = orderData?['customerName'] as String?;
         final orderTotal = (orderData?['total'] ?? 0.0).toDouble();
-        final restaurantName = orderData?['restaurantName'] as String? ?? 'MartFood';
+        final restaurantName =
+            orderData?['restaurantName'] as String? ?? 'MartFood';
 
         if (customerId != null && customerId.isNotEmpty) {
           await NotificationService.sendPushToCustomer(
             customerId: customerId,
             title: 'Order Delivered!',
-            body: 'Your order #$id from $restaurantName has been delivered successfully.',
-            data: {'type': 'order_status', 'orderId': id, 'status': 'delivered'},
+            body:
+                'Your order #$id from $restaurantName has been delivered successfully.',
+            data: {
+              'type': 'order_status',
+              'orderId': id,
+              'status': 'delivered'
+            },
           );
         }
 
@@ -359,19 +443,26 @@ class OrdersNotifier extends Notifier<OrdersState> {
         try {
           final vendorId = orderData?['vendorId'] as String?;
           if (vendorId != null && vendorId.isNotEmpty) {
-            final vendorSnap = await FirebaseFirestore.instance.collection('vendors').doc(vendorId).get();
+            final vendorSnap = await FirebaseFirestore.instance
+                .collection('vendors')
+                .doc(vendorId)
+                .get();
             if (vendorSnap.exists) {
               final vendorData = vendorSnap.data() ?? {};
               final vendorEmail = (vendorData['email'] ?? '').toString();
-              final vendorName = (vendorData['fullName'] ?? 'Vendor').toString();
+              final vendorName =
+                  (vendorData['fullName'] ?? 'Vendor').toString();
 
               if (vendorEmail.isNotEmpty) {
-                final subtotal = (orderData?['vendorSubtotal'] ?? orderData?['subtotal'] ?? 0.0).toDouble();
+                final subtotal = (orderData?['vendorSubtotal'] ??
+                        orderData?['subtotal'] ??
+                        0.0)
+                    .toDouble();
                 final itemsList = orderData?['items'] as List<dynamic>? ?? [];
                 final itemsHtmlList = itemsList.map((item) {
                   final title = item['title']?.toString() ?? 'Item';
                   final quantity = item['quantity'] ?? 1;
-                  return '<li style="margin-bottom: 8px;"><strong>$quantity ×</strong> $title</li>';
+                  return '<li style="margin-bottom: 8px;"><strong>$quantity &times;</strong> $title</li>';
                 }).join('\n');
 
                 final vendorDeliveredHtml = '''
@@ -480,7 +571,9 @@ class LedgerEntriesNotifier extends Notifier<List<LedgerEntry>> {
         final data = doc.data();
         list.add(LedgerEntry(
           id: doc.id,
-          kind: data['kind'] == 'credit' ? LedgerEntryKind.credit : LedgerEntryKind.debit,
+          kind: data['kind'] == 'credit'
+              ? LedgerEntryKind.credit
+              : LedgerEntryKind.debit,
           title: data['title'] ?? '',
           subtitle: data['subtitle'] ?? '',
           dateLabel: data['dateLabel'] ?? '',
@@ -492,6 +585,7 @@ class LedgerEntriesNotifier extends Notifier<List<LedgerEntry>> {
   }
 }
 
-final ledgerEntriesProvider = NotifierProvider<LedgerEntriesNotifier, List<LedgerEntry>>(
+final ledgerEntriesProvider =
+    NotifierProvider<LedgerEntriesNotifier, List<LedgerEntry>>(
   LedgerEntriesNotifier.new,
 );

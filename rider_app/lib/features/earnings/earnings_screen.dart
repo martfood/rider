@@ -61,8 +61,7 @@ class EarningsScreen extends ConsumerWidget {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
-    final backgroundColor =
-        isDark ? AppTheme.darkSurface : Colors.white;
+    final backgroundColor = isDark ? AppTheme.darkSurface : Colors.white;
     final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
@@ -111,7 +110,7 @@ class EarningsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── 1. Hero Earnings Card matching Customer Wallet ──────────
+                  // â”€â”€ 1. Hero Earnings Card matching Customer Wallet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                   _buildWalletHeroCard(
                     context: context,
                     fullName: profile.displayName.isNotEmpty
@@ -123,12 +122,13 @@ class EarningsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // ── 2. Action Buttons Row: Bank Details & History ──────────
+                  // â”€â”€ 2. Action Buttons Row: Bank Details & History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                   Row(
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => context.push('/account/bank-details'),
+                          onPressed: () =>
+                              context.push('/account/bank-details'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: purpleColor,
                             foregroundColor: Colors.white,
@@ -204,9 +204,99 @@ class EarningsScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+
+                  // ── 3. Transparent Commission Notice (When > 0%) ─────────────
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('settings')
+                        .doc('rider_settings')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData || snapshot.data == null) {
+                        return const SizedBox.shrink();
+                      }
+                      final data =
+                          snapshot.data!.data() as Map<String, dynamic>?;
+                      final rawComm = data?['commissionPercent'];
+                      final comm = rawComm is num
+                          ? rawComm.toDouble()
+                          : (double.tryParse(rawComm?.toString() ?? '') ?? 0.0);
+
+                      if (comm <= 0) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final commLabel = comm == comm.roundToDouble()
+                          ? '${comm.toInt()}%'
+                          : '${comm.toStringAsFixed(1)}%';
+
+                      final bannerBg = isDark
+                          ? purpleColor.withValues(alpha: 0.10)
+                          : const Color(0xFFF5F3FF);
+                      final bannerBorder = isDark
+                          ? purpleColor.withValues(alpha: 0.25)
+                          : const Color(0xFFDDD6FE);
+
+                      return Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 20),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: bannerBg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: bannerBorder, width: 1),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: purpleColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                LucideIcons.percent,
+                                size: 16,
+                                color: purpleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Platform Commission: $commLabel',
+                                    style: TextStyle(
+                                      color: primaryTextColor,
+                                      fontSize: AppTypography.font(13),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'A $commLabel platform deduction is applied to delivery fees upon order completion.',
+                                    style: TextStyle(
+                                      color: mutedTextColor,
+                                      fontSize: AppTypography.font(11.5),
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 24),
 
-                  // ── 4. Recent Transactions Header & List ───────────────────
+                  // â”€â”€ 4. Recent Transactions Header & List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                   Text(
                     'Recent transactions',
                     style: TextStyle(
@@ -217,7 +307,7 @@ class EarningsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 14),
 
-                  // ── 5. Realtime Transactions Stream ────────────────────────
+                  // â”€â”€ 5. Realtime Transactions Stream â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                   _buildTransactionsSection(
                     context: context,
                     userId: user.uid,
@@ -308,7 +398,7 @@ class EarningsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '₦${_formatCurrency(balance)}',
+                  'â‚¦${_formatCurrency(balance)}',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: AppTypography.font(32),
@@ -372,7 +462,8 @@ class EarningsScreen extends ConsumerWidget {
     required Color purpleColor,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+    final borderColor =
+        isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
 
     return Container(
       width: double.infinity,
@@ -417,10 +508,15 @@ class EarningsScreen extends ConsumerWidget {
                 final tx = sortedDocs[index].data() as Map<String, dynamic>;
                 final amountVal = (tx['amount'] as num?) ?? 0;
                 final isExpense = tx['isExpense'] as bool? ?? false;
-                final typeStr = (tx['type'] ?? (isExpense ? 'Deduction' : 'Delivery')).toString();
-                final title = (tx['title'] ?? (isExpense ? 'Wallet Deduction' : 'Earnings Credit')).toString();
+                final typeStr =
+                    (tx['type'] ?? (isExpense ? 'Deduction' : 'Delivery'))
+                        .toString();
+                final title = (tx['title'] ??
+                        (isExpense ? 'Wallet Deduction' : 'Earnings Credit'))
+                    .toString();
                 final description = (tx['description'] ?? '').toString();
-                final timeStr = _formatTimestamp(tx['createdAt'] ?? tx['timestamp']);
+                final timeStr =
+                    _formatTimestamp(tx['createdAt'] ?? tx['timestamp']);
 
                 IconData icon;
                 Color iconColor;
@@ -445,7 +541,8 @@ class EarningsScreen extends ConsumerWidget {
                   title: title,
                   description: description,
                   time: timeStr,
-                  amount: '${isExpense ? '-' : '+'}₦${_formatCurrency(amountVal)}',
+                  amount:
+                      '${isExpense ? '-' : '+'}₦${_formatCurrency(amountVal)}',
                   type: typeStr,
                   isExpense: isExpense,
                   icon: icon,
@@ -468,8 +565,8 @@ class EarningsScreen extends ConsumerWidget {
 
               if (orderDocs.isEmpty) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 28, horizontal: 12),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 28, horizontal: 12),
                   child: Column(
                     children: [
                       Container(
@@ -534,14 +631,34 @@ class EarningsScreen extends ConsumerWidget {
                   height: 22,
                 ),
                 itemBuilder: (context, index) {
-                  final orderData = sortedOrders[index].data() as Map<String, dynamic>;
-                  final orderNum = (orderData['orderNumber'] ?? sortedOrders[index].id).toString();
-                  final shortOrderNum = orderNum.length > 8 ? orderNum.substring(0, 8) : orderNum;
-                  final deliveryFee = (orderData['deliveryFee'] as num?)?.toDouble() ?? 1200.0;
+                  final orderData =
+                      sortedOrders[index].data() as Map<String, dynamic>;
+                  final orderNum =
+                      (orderData['orderNumber'] ?? sortedOrders[index].id)
+                          .toString();
+                  final shortOrderNum =
+                      orderNum.length > 8 ? orderNum.substring(0, 8) : orderNum;
+                  final deliveryFee =
+                      (orderData['deliveryFee'] as num?)?.toDouble() ?? 1200.0;
                   final tip = (orderData['tip'] as num?)?.toDouble() ?? 0.0;
-                  final earnedAmount = deliveryFee + tip;
-                  final restaurantName = (orderData['restaurantName'] ?? orderData['vendorName'] ?? 'Food Delivery').toString();
-                  final timeStr = _formatTimestamp(orderData['deliveredAt'] ?? orderData['createdAt']);
+
+                  // Use real net riderEarning if stored; otherwise deduct commissionPercent if recorded
+                  double riderEarning;
+                  if (orderData['riderEarning'] is num) {
+                    riderEarning =
+                        (orderData['riderEarning'] as num).toDouble();
+                  } else {
+                    final rawComm = orderData['commissionPercent'];
+                    final comm = rawComm is num ? rawComm.toDouble() : 0.0;
+                    riderEarning = deliveryFee * (1.0 - (comm / 100.0));
+                  }
+                  final earnedAmount = riderEarning + tip;
+                  final restaurantName = (orderData['restaurantName'] ??
+                          orderData['vendorName'] ??
+                          'Food Delivery')
+                      .toString();
+                  final timeStr = _formatTimestamp(
+                      orderData['deliveredAt'] ?? orderData['createdAt']);
 
                   return _buildTransactionRow(
                     context: context,
@@ -619,7 +736,9 @@ class EarningsScreen extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
+                    color: isDark
+                        ? const Color(0xFFD1D5DB)
+                        : const Color(0xFF4B5563),
                     fontSize: AppTypography.font(AppFontSizes.bodySmall),
                     fontWeight: FontWeight.w500,
                   ),
@@ -645,8 +764,12 @@ class EarningsScreen extends ConsumerWidget {
               amount,
               style: TextStyle(
                 color: isExpense
-                    ? (isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48))
-                    : (isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A)),
+                    ? (isDark
+                        ? const Color(0xFFF87171)
+                        : const Color(0xFFE11D48))
+                    : (isDark
+                        ? const Color(0xFF4ADE80)
+                        : const Color(0xFF16A34A)),
                 fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                 fontWeight: FontWeight.w800,
               ),

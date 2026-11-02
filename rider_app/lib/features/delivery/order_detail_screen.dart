@@ -843,11 +843,57 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     }
   }
 
-  void _showDeliveredSuccessSheet(
-      RiderOrder order, bool isDark, Color purpleColor) {
+  Future<void> _showDeliveredSuccessSheet(
+      RiderOrder order, bool isDark, Color purpleColor) async {
     final sheetBg = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF1E1E2D);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
+
+    // Fetch the updated order doc to display exact net rider earnings credited
+    double riderEarning = order.deliveryFee;
+    double commissionPercent = 0.0;
+    try {
+      final orderDoc = await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.orderId)
+          .get();
+      if (orderDoc.exists) {
+        final oData = orderDoc.data() ?? {};
+        final rawEarning = oData['riderEarning'];
+        final rawComm = oData['commissionPercent'];
+        if (rawEarning is num) {
+          riderEarning = rawEarning.toDouble();
+        }
+        if (rawComm is num) {
+          commissionPercent = rawComm.toDouble();
+        }
+      }
+      if (commissionPercent <= 0) {
+        final sDoc = await FirebaseFirestore.instance
+            .collection('settings')
+            .doc('rider_settings')
+            .get();
+        if (sDoc.exists) {
+          final rawComm = sDoc.data()?['commissionPercent'];
+          if (rawComm is num && rawComm > 0) {
+            commissionPercent = rawComm.toDouble();
+            riderEarning =
+                order.deliveryFee * (1.0 - (commissionPercent / 100.0));
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[DeliveredSuccessSheet] Error reading earning: $e');
+    }
+
+    final parts = riderEarning.toStringAsFixed(2).split('.');
+    final whole = parts[0].replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]},',
+    );
+    final formattedEarning = '₦$whole.${parts[1]}';
+
+    if (!mounted) return;
 
     showModalBottomSheet<void>(
       context: context,
@@ -888,7 +934,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Great job! ${order.deliveryFeeLabel} has been credited to your wallet balance.',
+                  commissionPercent > 0
+                      ? 'Great job! $formattedEarning has been credited to your wallet balance (${commissionPercent.toStringAsFixed(0)}% commission deducted).'
+                      : 'Great job! $formattedEarning has been credited to your wallet balance.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: AppTypography.font(13),
@@ -941,6 +989,31 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           .get();
       final data = orderDoc.data() ?? {};
       final deliveryFee = (data['deliveryFee'] ?? order.deliveryFee).toDouble();
+
+      double commissionPercent = 0.0;
+      if (data['commissionPercent'] is num) {
+        commissionPercent = (data['commissionPercent'] as num).toDouble();
+      } else {
+        final sDoc = await FirebaseFirestore.instance
+            .collection('settings')
+            .doc('rider_settings')
+            .get();
+        if (sDoc.exists) {
+          final raw = sDoc.data()?['commissionPercent'];
+          if (raw is num) commissionPercent = raw.toDouble();
+        }
+      }
+
+      final riderEarning = (data['riderEarning'] as num?)?.toDouble() ??
+          (deliveryFee * (1.0 - (commissionPercent / 100.0)));
+
+      final parts = riderEarning.toStringAsFixed(2).split('.');
+      final whole = parts[0].replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+        (match) => '${match[1]},',
+      );
+      final formattedEarning = '₦$whole.${parts[1]}';
+
       final profile = ref.read(riderProfileProvider);
       final riderId = FirebaseAuth.instance.currentUser?.uid;
 
@@ -962,7 +1035,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       <div style="background-color: #F5F3FF; padding: 16px; border-radius: 8px; margin: 20px 0;">
         <p><strong>Restaurant:</strong> ${order.restaurantName}</p>
         <p><strong>Customer:</strong> ${order.customerName}</p>
-        <p><strong>Earnings Credited:</strong> ₦${deliveryFee.toStringAsFixed(2)}</p>
+        <p><strong>Gross Delivery Fee:</strong> ₦${deliveryFee.toStringAsFixed(2)}</p>
+        ${commissionPercent > 0 ? '<p><strong>Commission (${commissionPercent.toStringAsFixed(0)}%):</strong> -₦${(deliveryFee - riderEarning).toStringAsFixed(2)}</p>' : ''}
+        <p><strong>Net Earnings Credited:</strong> $formattedEarning</p>
       </div>
       <p>Best Regards,<br/><strong>The MartFood Team</strong></p>
     </div>
@@ -983,9 +1058,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         NotificationService.sendPushNotification(
           riderId: riderId,
           title: 'Wallet Credited! ₦',
-          body:
-              'Your wallet has been credited with ₦${deliveryFee.toStringAsFixed(2)} for the delivery.',
-          data: {'type': 'wallet_credited', 'amount': deliveryFee},
+          body: commissionPercent > 0
+              ? 'Your wallet has been credited with $formattedEarning for the delivery (${commissionPercent.toStringAsFixed(0)}% commission applied).'
+              : 'Your wallet has been credited with $formattedEarning for the delivery.',
+          data: {'type': 'wallet_credited', 'amount': riderEarning},
         );
       }
     } catch (e) {
@@ -993,7 +1069,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     }
   }
 
-  // ── Stage Helpers ──────────────────────────────────────────────────────────
+  // â”€â”€ Stage Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   String _getStageTitle(OrderStage stage) {
     switch (stage) {
@@ -1054,7 +1130,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       case OrderStage.awaitingDeliveryCode:
         return 'Confirm Delivery';
       case OrderStage.delivered:
-        return 'Delivered ✓';
+        return 'Delivered âœ“';
     }
   }
 
@@ -1230,7 +1306,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── CARD 1: Active Delivery Status Tracker & Updating Button ─
+                      // â”€â”€ CARD 1: Active Delivery Status Tracker & Updating Button â”€
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(18),
@@ -1430,7 +1506,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             left: -18, right: -18, top: 16, bottom: 16),
                       ),
 
-                      // ── CARD 2: Pick Up & Drop Off Route ─────────────────────────
+                      // â”€â”€ CARD 2: Pick Up & Drop Off Route â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(18),
@@ -1660,7 +1736,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             left: -18, right: -18, top: 16, bottom: 16),
                       ),
 
-                      // ── SECTION: Order & Delivered Date & Time ─────────────
+                      // â”€â”€ SECTION: Order & Delivered Date & Time â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                       Builder(
                         builder: (context) {
                           final rawStatus =
@@ -1785,7 +1861,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             left: -18, right: -18, top: 16, bottom: 16),
                       ),
 
-                      // ── SECTION: Customer Note (riderNote) ─────────────────
+                      // â”€â”€ SECTION: Customer Note (riderNote) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(18),
@@ -1858,7 +1934,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             left: -18, right: -18, top: 16, bottom: 16),
                       ),
 
-                      // ── CARD 3: Order Items & Subtotal ───────────────────────────
+                      // â”€â”€ CARD 3: Order Items & Subtotal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(18),
@@ -1975,7 +2051,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                         ),
                                       ),
                                       Text(
-                                        '₦${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                                        'â‚¦${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                                         style: TextStyle(
                                           fontSize: AppTypography.font(14),
                                           fontWeight: FontWeight.w700,
@@ -2048,7 +2124,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '₦${totalAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                                    'â‚¦${totalAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                                     style: TextStyle(
                                       fontSize: AppTypography.font(15),
                                       fontWeight: FontWeight.w800,
@@ -2074,7 +2150,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     );
   }
 
-  // ── Helper Widgets ─────────────────────────────────────────────────────────
+  // â”€â”€ Helper Widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildHorizontalStepper({
     required int activeStepIndex,

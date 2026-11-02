@@ -102,7 +102,7 @@ class AppUpdateService {
       }
 
       final String title =
-          (data['title'] ?? 'New Rider App Update! 🛵').toString();
+          (data['title'] ?? 'New Rider App Update!').toString();
       final String message = (data['message'] ??
               'A new version of MartFood Rider is available with improved delivery routing and enhancements.')
           .toString();

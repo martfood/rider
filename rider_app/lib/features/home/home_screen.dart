@@ -20,6 +20,7 @@ import '../../core/services/app_update_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/rider_location_service.dart';
 import 'order_acceptance_success_sheet.dart';
+import 'order_broadcast_widgets.dart';
 import 'rider_current_location_map_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -796,7 +797,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
+    final isOnline = ref.read(riderAvailabilityProvider);
+    if (!isOnline) {
+      if (mounted) {
+        showOfflineCannotAcceptOrderSheet(context: context);
+      }
+      return;
+    }
+
     final profile = ref.read(riderProfileProvider);
+    final broadcastCheck = await OrderBroadcastHelper.resolveBroadcastStatus(
+      orderData: orderData,
+      riderLocation: profile.currentLocation,
+    );
+    if (broadcastCheck.exceedsRadius) {
+      if (mounted) {
+        final restaurantName =
+            (orderData['restaurantName'] ?? 'Restaurant').toString();
+        showOutOfBroadcastRadiusSheet(
+          context: context,
+          distanceKm: broadcastCheck.distanceKm!,
+          broadcastRadiusKm: broadcastCheck.broadcastRadiusKm,
+          restaurantName: restaurantName,
+        );
+      }
+      return;
+    }
     final orderRef = FirebaseFirestore.instance.collection('orders').doc(orderId);
     final riderRef = FirebaseFirestore.instance.collection('riders').doc(uid);
 
@@ -848,7 +874,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
           await NotificationService.sendPushToCustomer(
             customerId: customerId,
-            title: 'Rider Assigned! 🚴',
+            title: 'Rider Assigned!',
             body: '$riderName has accepted your delivery for order #$displayId.',
             data: {
               'orderId': orderId.replaceAll('#', ''),
@@ -1417,38 +1443,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     builder: (context, snapshot) {
                       final docs = snapshot.data?.docs ?? [];
 
-                      final riderLat = profile.currentLocation?.latitude ?? 6.5244;
-                      final riderLng = profile.currentLocation?.longitude ?? 3.3792;
-
-                      // Filter out orders that the rider has declined, already assigned, or outside broadcast radius
+                      // Filter out orders that the rider has declined or that are already assigned
                       final availableOrders = docs.where((doc) {
                         final data = doc.data() as Map<String, dynamic>;
                         final declined = (data['declinedRiders'] as List<dynamic>?) ?? [];
                         final riderId = (data['riderId'] ?? '').toString();
                         final status = (data['status'] ?? '').toString();
-                        final radiusKm = (data['broadcastRadiusKm'] as num?)?.toDouble() ?? 3.0;
 
                         if (declined.contains(currentRiderUid) ||
                             riderId.isNotEmpty ||
                             !(status == 'ready_for_pickup' || status == 'order_ready' || status == 'order_accepted' || status == 'broadcasting')) {
                           return false;
                         }
-
-                        // Strictly enforce broadcast radius set by admin/vendor
-                        final vendorLoc = _VendorDistanceText.extractGeoPoint(data['currentvendorLocation']) ??
-                            _VendorDistanceText.extractGeoPoint(data['currentVendorLocation']) ??
-                            _VendorDistanceText.extractGeoPoint(data['restaurantLocation']) ??
-                            _VendorDistanceText.extractGeoPoint(data['vendorLocation']) ??
-                            _VendorDistanceText.extractGeoPoint(data['pickupLocation']);
-
-                        if (vendorLoc != null) {
-                          final dist = _VendorDistanceText.calcHaversine(riderLat, riderLng, vendorLoc.latitude, vendorLoc.longitude);
-                          if (dist > radiusKm) {
-                            return false;
-                          }
-                        }
                         return true;
                       }).toList();
+
+                      // Prioritize orders within broadcastRadiusKm first
+                      availableOrders.sort((a, b) {
+                        final dataA = a.data() as Map<String, dynamic>;
+                        final dataB = b.data() as Map<String, dynamic>;
+                        final statusA = OrderBroadcastHelper.computeStatusSync(
+                          orderData: dataA,
+                          riderLocation: profile.currentLocation,
+                        );
+                        final statusB = OrderBroadcastHelper.computeStatusSync(
+                          orderData: dataB,
+                          riderLocation: profile.currentLocation,
+                        );
+                        final withinA = !statusA.exceedsRadius ? 0 : 1;
+                        final withinB = !statusB.exceedsRadius ? 0 : 1;
+                        if (withinA != withinB) return withinA.compareTo(withinB);
+                        final distA = statusA.distanceKm ?? 0.0;
+                        final distB = statusB.distanceKm ?? 0.0;
+                        return distA.compareTo(distB);
+                      });
 
                       if (availableOrders.isEmpty) {
                         return _buildEmptyOrdersState(isDark, cardBg, borderColor, purpleColor);
@@ -1567,7 +1595,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     Color mutedTextColor,
   ) {
     final restaurantName = (data['restaurantName'] ?? 'Restaurant').toString();
-    final restaurantAddress = (data['restaurantAddress'] ?? data['pickupAddress'] ?? 'Pickup Location').toString();
+    final customerName = (data['customerName'] ?? data['recipientName'] ?? 'Customer').toString();
     final customerAddress = ((data['deliveryAddress'] is Map ? data['deliveryAddress']['address'] : null) ??
             data['dropoffAddress'] ??
             data['customerAddress'] ??
@@ -1580,7 +1608,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             data['restaurantPhoto'] ??
             '')
         .toString();
-    final vendorId = (data['vendorId'] ?? data['merchantId'] ?? '').toString();
+    final vendorId = OrderBroadcastHelper.extractVendorId(data);
     final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ??
         (data['fee'] as num?)?.toDouble() ??
         0.0;
@@ -1600,7 +1628,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header: Restaurant Thumbnail + Name + Location ────────────────
+            // ── Header: Restaurant Thumbnail + Name + Rating/Reviews ─────────
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1620,29 +1648,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: AppTypography.font(15),
+                          fontSize: AppTypography.font(AppFontSizes.titleSmall),
                           fontWeight: FontWeight.bold,
                           color: primaryTextColor,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Icon(LucideIcons.package, size: 12, color: purpleColor),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              restaurantAddress,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
-                                fontWeight: FontWeight.w500,
-                                color: mutedTextColor,
-                              ),
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 3),
+                      VendorRatingReviewsRow(
+                        data: data,
+                        primaryTextColor: primaryTextColor,
+                        mutedTextColor: mutedTextColor,
                       ),
                     ],
                   ),
@@ -1661,15 +1676,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     _buildStepperDot(purpleColor),
                     Container(
                       width: 1.5,
-                      height: 38,
-                      color: isDark ? AppTheme.darkBorder : const Color(0xFFD8B4FE),
+                      height: 54,
+                      color: isDark ? AppTheme.darkBorder : AppTheme.lightPurpleBorder,
                     ),
                     _buildStepperDot(purpleColor),
                   ],
                 ),
                 const SizedBox(width: 12),
 
-                // Pickup & Dropoff Labels and Addresses
+                // Pickup & Dropoff Labels, Names, and Addresses
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1694,6 +1709,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                           color: primaryTextColor,
                         ),
                       ),
+                      const SizedBox(height: 2),
+                      VendorAddressText(
+                        data: data,
+                        style: TextStyle(
+                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                          fontWeight: FontWeight.w500,
+                          color: mutedTextColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 14),
 
                       // Dropoff
@@ -1707,13 +1733,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        customerAddress,
+                        customerName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: AppTypography.font(AppFontSizes.bodyMedium),
                           fontWeight: FontWeight.w700,
                           color: primaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        customerAddress,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                          fontWeight: FontWeight.w500,
+                          color: mutedTextColor,
                         ),
                       ),
                     ],
@@ -1744,7 +1781,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               decoration: BoxDecoration(
                 color: isDark
                     ? purpleColor.withValues(alpha: 0.12)
-                    : const Color(0xFFFAF5FF),
+                    : AppTheme.lightSurface,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -1752,7 +1789,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   Text(
                     '₦${deliveryFee.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                     style: TextStyle(
-                      fontSize: AppTypography.font(20),
+                      fontSize: AppTypography.font(AppFontSizes.displaySmall),
                       fontWeight: FontWeight.w800,
                       color: purpleColor,
                     ),
@@ -1772,57 +1809,97 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             const SizedBox(height: 16),
 
             // ── Action Buttons (Decline / Accept) ──────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: OutlinedButton(
-                      onPressed: () => _declineOrder(orderId),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
-                        foregroundColor: const Color(0xFFEF4444),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                      child: Text(
-                        'Decline',
-                        style: TextStyle(
-                          fontSize: AppTypography.font(15),
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFFEF4444),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () => _acceptOrder(data, orderId),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: purpleColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                      child: Text(
-                        'Accept',
-                        style: TextStyle(
-                          fontSize: AppTypography.font(15),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+            OrderBroadcastStatusBuilder(
+              orderData: data,
+              riderLocation: riderLoc,
+              builder: (context, broadcastStatus) {
+                final isOnline = ref.watch(riderAvailabilityProvider);
+                final exceedsRadius = broadcastStatus.exceedsRadius;
+                final cannotAccept = !isOnline || exceedsRadius;
+                final disabledBg =
+                    isDark ? AppTheme.darkBorder : AppTheme.lightInputFill;
+                final disabledFg = AppTheme.mutedTextColorFor(isDark);
+
+                return Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: () => _declineOrder(orderId),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                              color: Colors.redAccent,
+                              width: 1.2,
+                            ),
+                            foregroundColor: Colors.redAccent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                          ),
+                          child: Text(
+                            'Decline',
+                            style: TextStyle(
+                              fontSize:
+                                  AppTypography.font(AppFontSizes.titleSmall),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.redAccent,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ],
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (!isOnline) {
+                              showOfflineCannotAcceptOrderSheet(
+                                context: context,
+                              );
+                            } else if (exceedsRadius) {
+                              showOutOfBroadcastRadiusSheet(
+                                context: context,
+                                distanceKm: broadcastStatus.distanceKm!,
+                                broadcastRadiusKm:
+                                    broadcastStatus.broadcastRadiusKm,
+                                restaurantName: restaurantName,
+                              );
+                            } else {
+                              _acceptOrder(data, orderId);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                cannotAccept ? disabledBg : purpleColor,
+                            foregroundColor:
+                                cannotAccept ? disabledFg : Colors.white,
+                            elevation: 0,
+                            side: cannotAccept
+                                ? BorderSide(color: borderColor, width: 1)
+                                : BorderSide.none,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                          ),
+                          child: Text(
+                            'Accept',
+                            style: TextStyle(
+                              fontSize:
+                                  AppTypography.font(AppFontSizes.titleSmall),
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  cannotAccept ? disabledFg : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),

@@ -159,7 +159,7 @@ class _SupportConversationScreenState
           .doc(widget.chatId);
       await docRef.update({
         'status': 'active',
-        'lastMessage': '📷 Image attachment',
+        'lastMessage': 'Image attachment',
         'lastMessageAt': nowStr,
         'messages': FieldValue.arrayUnion([messageObj]),
       });

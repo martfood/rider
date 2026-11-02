@@ -16,8 +16,10 @@ import '../../core/services/notification_service.dart';
 import '../../domain/order_stage.dart';
 import '../../domain/rider_order.dart';
 import '../../providers/orders_providers.dart';
+import '../../providers/rider_app_providers.dart';
 import '../../providers/rider_profile_provider.dart';
 import '../home/order_acceptance_success_sheet.dart';
+import '../home/order_broadcast_widgets.dart';
 
 /// Full order detail screen matching the Active Delivery reference UI.
 class OrderDetailScreen extends ConsumerStatefulWidget {
@@ -70,7 +72,20 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     } else {
       return 'N/A';
     }
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     final monthStr = months[dt.month - 1];
     final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
     final ampm = dt.hour >= 12 ? 'PM' : 'AM';
@@ -102,8 +117,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || _isSubmitting) return;
 
+    final isOnline = ref.read(riderAvailabilityProvider);
+    if (!isOnline) {
+      if (mounted) {
+        showOfflineCannotAcceptOrderSheet(context: context);
+      }
+      return;
+    }
+
     final profile = ref.read(riderProfileProvider);
-    final orderRef = FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
+    final orderRef =
+        FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
     final riderRef = FirebaseFirestore.instance.collection('riders').doc(uid);
 
     setState(() => _isSubmitting = true);
@@ -119,14 +143,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         final broadcastStatus = currentData['broadcastStatus'] as String? ?? '';
         final existingRiderId = currentData['riderId'] as String? ?? '';
 
-        if (broadcastStatus == 'claimed' || (existingRiderId.isNotEmpty && existingRiderId != uid)) {
+        if (broadcastStatus == 'claimed' ||
+            (existingRiderId.isNotEmpty && existingRiderId != uid)) {
           throw Exception('Another rider has already accepted this order.');
         }
 
         transaction.update(orderRef, {
           'broadcastStatus': 'claimed',
           'riderId': uid,
-          'riderName': profile.displayName.isNotEmpty ? profile.displayName : 'Assigned Rider',
+          'riderName': profile.displayName.isNotEmpty
+              ? profile.displayName
+              : 'Assigned Rider',
           'riderPhone': profile.phone,
           'status': 'rider_assigned',
           'acceptedAt': FieldValue.serverTimestamp(),
@@ -155,14 +182,20 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         }
 
         if (customerId != null && customerId.isNotEmpty) {
-          final rawNum = (data['orderNumber'] ?? widget.orderId).toString().replaceAll('#', '');
-          final displayId = rawNum.length > 6 ? rawNum.substring(rawNum.length - 6).toUpperCase() : rawNum.toUpperCase();
-          final riderName = profile.displayName.isNotEmpty ? profile.displayName : 'A rider';
+          final rawNum = (data['orderNumber'] ?? widget.orderId)
+              .toString()
+              .replaceAll('#', '');
+          final displayId = rawNum.length > 6
+              ? rawNum.substring(rawNum.length - 6).toUpperCase()
+              : rawNum.toUpperCase();
+          final riderName =
+              profile.displayName.isNotEmpty ? profile.displayName : 'A rider';
 
           await NotificationService.sendPushToCustomer(
             customerId: customerId,
-            title: 'Rider Assigned! 🚴',
-            body: '$riderName has accepted your delivery for order #$displayId.',
+            title: 'Rider Assigned!',
+            body:
+                '$riderName has accepted your delivery for order #$displayId.',
             data: {
               'orderId': widget.orderId.replaceAll('#', ''),
               'type': 'order_status',
@@ -178,10 +211,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
       if (mounted) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final restaurantName = (data['restaurantName'] ?? 'Restaurant').toString();
-        final restaurantAddress = (data['restaurantAddress'] ?? data['pickupAddress'] ?? 'Pickup Location').toString();
-        final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ?? (data['fee'] as num?)?.toDouble() ?? 0.0;
-        final deliveryFeeLabel = '₦${deliveryFee.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+        final restaurantName =
+            (data['restaurantName'] ?? 'Restaurant').toString();
+        final restaurantAddress = (data['restaurantAddress'] ??
+                data['pickupAddress'] ??
+                'Pickup Location')
+            .toString();
+        final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ??
+            (data['fee'] as num?)?.toDouble() ??
+            0.0;
+        final deliveryFeeLabel =
+            '₦${deliveryFee.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
 
         showOrderAcceptedSuccessSheet(
           context: context,
@@ -215,7 +255,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     Color purpleColor,
   ) {
     String selectedReason = 'Vehicle breakdown / flat tire';
-    bool goOffline = true;
+    bool goOffline = false;
     bool isUnassigning = false;
 
     showModalBottomSheet(
@@ -231,7 +271,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           builder: (context, setSheetState) {
             final primaryTextColor = isDark ? Colors.white : Colors.black87;
             final mutedTextColor = AppTheme.mutedTextColorFor(isDark);
-            final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+            final borderColor =
+                isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
             final cardBg = isDark ? AppTheme.darkSurface : Colors.white;
 
             return SafeArea(
@@ -269,11 +310,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             shape: BoxShape.circle,
                             color: isDark
                                 ? AppTheme.darkSurface
-                                : Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .error
+                                    .withValues(alpha: 0.1),
                             border: Border.all(
                               color: isDark
                                   ? AppTheme.darkBorder
-                                  : Theme.of(context).colorScheme.error.withValues(alpha: 0.25),
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .error
+                                      .withValues(alpha: 0.25),
                               width: 1,
                             ),
                           ),
@@ -300,7 +347,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                               Text(
                                 'Prior to pickup from restaurant',
                                 style: TextStyle(
-                                  fontSize: AppTypography.font(AppFontSizes.caption),
+                                  fontSize:
+                                      AppTypography.font(AppFontSizes.caption),
                                   fontWeight: FontWeight.w500,
                                   color: mutedTextColor,
                                 ),
@@ -373,9 +421,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                       ? LucideIcons.circleDot
                                       : LucideIcons.circle,
                                   size: 18,
-                                  color: isSelected
-                                      ? purpleColor
-                                      : mutedTextColor,
+                                  color:
+                                      isSelected ? purpleColor : mutedTextColor,
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
@@ -480,7 +527,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     );
                                   },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.error,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.error,
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
@@ -529,9 +577,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     if (uid == null) return;
 
     final profile = ref.read(riderProfileProvider);
-    final orderRef = FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
+    final orderRef =
+        FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
     final riderRef = FirebaseFirestore.instance.collection('riders').doc(uid);
-    final presenceRef = FirebaseFirestore.instance.collection('rider_presence').doc(uid);
+    final presenceRef =
+        FirebaseFirestore.instance.collection('rider_presence').doc(uid);
 
     try {
       final batch = FirebaseFirestore.instance.batch();
@@ -548,8 +598,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         'unassignedAt': FieldValue.serverTimestamp(),
         'unassignedBy': 'rider',
         'unassignReason': reason,
-        'excludedRiderIds': FieldValue.arrayUnion([uid]),
-        'declinedRiders': FieldValue.arrayUnion([uid]),
+        'excludedRiderIds': FieldValue.arrayRemove([uid]),
+        'declinedRiders': FieldValue.arrayRemove([uid]),
       });
 
       // 2. Update rider doc
@@ -579,16 +629,23 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
       // Send Push to Vendor
       final vendorId = (data['vendorId'] ?? data['restaurantId'])?.toString();
-      final orderShort = (data['orderNumber'] ?? widget.orderId).toString().replaceAll('#', '');
-      final displayId = orderShort.length > 6 ? orderShort.substring(orderShort.length - 6).toUpperCase() : orderShort.toUpperCase();
-      final riderDisplayName = profile.displayName.isNotEmpty ? profile.displayName : 'Assigned Rider';
+      final orderShort = (data['orderNumber'] ?? widget.orderId)
+          .toString()
+          .replaceAll('#', '');
+      final displayId = orderShort.length > 6
+          ? orderShort.substring(orderShort.length - 6).toUpperCase()
+          : orderShort.toUpperCase();
+      final riderDisplayName = profile.displayName.isNotEmpty
+          ? profile.displayName
+          : 'Assigned Rider';
 
       if (vendorId != null && vendorId.isNotEmpty) {
         try {
           await NotificationService.sendPushToVendor(
             vendorId: vendorId,
-            title: 'Rider Unassigned from Order ⚠️',
-            body: '$riderDisplayName was unable to deliver Order #$displayId ($reason). Please reassign.',
+            title: 'Rider Unassigned from Order',
+            body:
+                '$riderDisplayName was unable to deliver Order #$displayId ($reason). Please reassign.',
             data: {
               'orderId': widget.orderId.replaceAll('#', ''),
               'type': 'rider_unassigned',
@@ -606,7 +663,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         try {
           await NotificationService.sendPushToCustomer(
             customerId: customerId,
-            title: 'Delivery Update 🚴',
+            title: 'Delivery Update',
             body: 'We are finding a new rider for your order #$displayId.',
             data: {
               'orderId': widget.orderId.replaceAll('#', ''),
@@ -626,8 +683,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('You have unassigned yourself from Order #$displayId ($reason).'),
-            backgroundColor: AppTheme.primaryPurpleFor(Theme.of(context).brightness == Brightness.dark),
+            content: Text(
+                'You have unassigned yourself from Order #$displayId ($reason).'),
+            backgroundColor: AppTheme.primaryPurpleFor(
+                Theme.of(context).brightness == Brightness.dark),
           ),
         );
         context.pop();
@@ -674,10 +733,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     String phoneToCall = fallbackPhone.trim();
     if (vendorId.isNotEmpty) {
       try {
-        final vendorDoc = await FirebaseFirestore.instance.collection('vendors').doc(vendorId).get();
+        final vendorDoc = await FirebaseFirestore.instance
+            .collection('vendors')
+            .doc(vendorId)
+            .get();
         if (vendorDoc.exists) {
           final vData = vendorDoc.data();
-          final personalPhone = (vData?['phone'] ?? vData?['phoneNumber'] ?? vData?['personalPhone'])?.toString().trim();
+          final personalPhone = (vData?['phone'] ??
+                  vData?['phoneNumber'] ??
+                  vData?['personalPhone'])
+              ?.toString()
+              .trim();
           if (personalPhone != null && personalPhone.isNotEmpty) {
             phoneToCall = personalPhone;
           }
@@ -698,7 +764,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     }
   }
 
-  Future<void> _handlePrimaryAction(RiderOrder order, bool isDark, Color purpleColor) async {
+  Future<void> _handlePrimaryAction(
+      RiderOrder order, bool isDark, Color purpleColor) async {
     if (_isSubmitting) return;
 
     switch (order.stage) {
@@ -727,7 +794,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     }
   }
 
-  Future<void> _verifyAndCompleteDelivery(RiderOrder order, bool isDark, Color purpleColor) async {
+  Future<void> _verifyAndCompleteDelivery(
+      RiderOrder order, bool isDark, Color purpleColor) async {
     final code = _currentPinCode;
     if (code.length < 4) {
       setState(() {
@@ -742,7 +810,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     });
 
     try {
-      final ok = await ref.read(ordersProvider.notifier).tryCompleteWithCode(widget.orderId, code);
+      final ok = await ref
+          .read(ordersProvider.notifier)
+          .tryCompleteWithCode(widget.orderId, code);
 
       if (!mounted) return;
 
@@ -750,7 +820,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         _masterPinController.clear();
         setState(() {
           _isSubmitting = false;
-          _pinErrorMessage = 'Incorrect PIN code. Ask customer for the 4-digit code.';
+          _pinErrorMessage =
+              'Incorrect PIN code. Ask customer for the 4-digit code.';
         });
         _pinFocusNode.requestFocus();
         return;
@@ -765,13 +836,15 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
-          _pinErrorMessage = 'Could not verify delivery. Please check connection and try again.';
+          _pinErrorMessage =
+              'Could not verify delivery. Please check connection and try again.';
         });
       }
     }
   }
 
-  void _showDeliveredSuccessSheet(RiderOrder order, bool isDark, Color purpleColor) {
+  void _showDeliveredSuccessSheet(
+      RiderOrder order, bool isDark, Color purpleColor) {
     final sheetBg = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF1E1E2D);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
@@ -800,12 +873,13 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: const Center(
-                    child: Icon(LucideIcons.circleCheck, size: 40, color: Color(0xFF10B981)),
+                    child: Icon(LucideIcons.circleCheck,
+                        size: 40, color: Color(0xFF10B981)),
                   ),
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  'Delivery Completed! 🎉',
+                  'Delivery Completed!',
                   style: TextStyle(
                     fontSize: AppTypography.font(20),
                     fontWeight: FontWeight.w800,
@@ -861,7 +935,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
   void _triggerDeliveredNotifications(RiderOrder order) async {
     try {
-      final orderDoc = await FirebaseFirestore.instance.collection('orders').doc(widget.orderId).get();
+      final orderDoc = await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.orderId)
+          .get();
       final data = orderDoc.data() ?? {};
       final deliveryFee = (data['deliveryFee'] ?? order.deliveryFee).toDouble();
       final profile = ref.read(riderProfileProvider);
@@ -870,14 +947,14 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       if (profile.email.isNotEmpty) {
         NotificationService.sendEmail(
           to: profile.email,
-          subject: 'Order Delivered Successfully! 📦',
+          subject: 'Order Delivered Successfully!',
           htmlContent: '''
 <!DOCTYPE html>
 <html>
 <body style="font-family: Arial, sans-serif; padding: 20px; color: #334155;">
   <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
     <div style="background-color: #7C3AED; padding: 24px; text-align: center;">
-      <h2 style="color: #ffffff; margin: 0; font-size: 22px;">Order Delivered Successfully! 🎉</h2>
+      <h2 style="color: #ffffff; margin: 0; font-size: 22px;">Order Delivered Successfully!</h2>
     </div>
     <div style="padding: 24px;">
       <p>Hi ${profile.displayName},</p>
@@ -898,7 +975,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       if (riderId != null) {
         NotificationService.sendPushNotification(
           riderId: riderId,
-          title: 'Order Delivered! 📦',
+          title: 'Order Delivered!',
           body: 'Order #${widget.orderId} was delivered successfully.',
           data: {'type': 'order_delivered', 'orderId': widget.orderId},
         );
@@ -906,7 +983,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         NotificationService.sendPushNotification(
           riderId: riderId,
           title: 'Wallet Credited! ₦',
-          body: 'Your wallet has been credited with ₦${deliveryFee.toStringAsFixed(2)} for the delivery.',
+          body:
+              'Your wallet has been credited with ₦${deliveryFee.toStringAsFixed(2)} for the delivery.',
           data: {'type': 'wallet_credited', 'amount': deliveryFee},
         );
       }
@@ -998,7 +1076,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           decoration: BoxDecoration(
             color: bgColor,
             border: Border(
-              bottom: BorderSide(color: borderColor.withValues(alpha: 0.6), width: 1),
+              bottom: BorderSide(
+                  color: borderColor.withValues(alpha: 0.6), width: 1),
             ),
           ),
           child: SafeArea(
@@ -1021,7 +1100,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                           border: Border.all(color: borderColor, width: 1),
                         ),
                         child: Center(
-                          child: Icon(Icons.arrow_back, color: purpleColor, size: 20),
+                          child: Icon(Icons.arrow_back,
+                              color: purpleColor, size: 20),
                         ),
                       ),
                     ),
@@ -1043,13 +1123,18 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         ),
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('orders').doc(widget.orderId).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('orders')
+            .doc(widget.orderId)
+            .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return Center(child: CircularProgressIndicator(color: purpleColor));
           }
 
-          final orderFromProvider = ref.watch(orderByIdProvider(widget.orderId));
+          final orderFromProvider =
+              ref.watch(orderByIdProvider(widget.orderId));
           final data = snapshot.hasData && snapshot.data!.exists
               ? snapshot.data!.data() as Map<String, dynamic>? ?? {}
               : <String, dynamic>{};
@@ -1058,7 +1143,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
             return Center(
               child: Text(
                 'Order not found',
-                style: TextStyle(color: mutedTextColor, fontSize: AppTypography.font(14)),
+                style: TextStyle(
+                    color: mutedTextColor, fontSize: AppTypography.font(14)),
               ),
             );
           }
@@ -1073,21 +1159,43 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   data['vendor_id'] ??
                   effectiveOrder.vendorId)
               .toString();
-          final restaurantName = (data['restaurantName'] ?? effectiveOrder.restaurantName).toString();
+          final restaurantName =
+              (data['restaurantName'] ?? effectiveOrder.restaurantName)
+                  .toString();
           final restaurantPhone = (data['restaurantPhone'] ??
                   data['vendorPhone'] ??
                   effectiveOrder.restaurantPhone)
               .toString();
-          final restaurantAddress = (data['restaurantAddress'] ?? data['pickupAddress'] ?? effectiveOrder.restaurantAddress).toString();
-          final customerName = (data['customerName'] ?? data['recipientName'] ?? effectiveOrder.customerName).toString();
-          final customerPhone = (data['customerPhone'] ?? data['recipientPhone'] ?? data['phoneNumber'] ?? effectiveOrder.customerPhone).toString();
-          final customerId = (data['customerId'] ?? data['userId'] ?? '').toString();
-          final customerAddress = ((data['deliveryAddress'] is Map ? data['deliveryAddress']['address'] : null) ??
+          final restaurantAddress = (data['restaurantAddress'] ??
+                  data['pickupAddress'] ??
+                  effectiveOrder.restaurantAddress)
+              .toString();
+          final customerName = (data['customerName'] ??
+                  data['recipientName'] ??
+                  effectiveOrder.customerName)
+              .toString();
+          final customerPhone = (data['customerPhone'] ??
+                  data['recipientPhone'] ??
+                  data['phoneNumber'] ??
+                  effectiveOrder.customerPhone)
+              .toString();
+          final customerId =
+              (data['customerId'] ?? data['userId'] ?? '').toString();
+          final customerAddress = ((data['deliveryAddress'] is Map
+                      ? data['deliveryAddress']['address']
+                      : null) ??
                   data['dropoffAddress'] ??
                   data['customerAddress'] ??
                   effectiveOrder.customerAddress)
               .toString();
-          final customerNote = (data['deliveryInstructions'] ?? data['note'] ?? data['instructions'] ?? '').toString();
+          final customerNote = (data['riderNote'] ??
+                  data['customerNote'] ??
+                  data['deliveryInstructions'] ??
+                  data['note'] ??
+                  data['instructions'] ??
+                  '')
+              .toString()
+              .trim();
 
           final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ??
               (data['fee'] as num?)?.toDouble() ??
@@ -1096,15 +1204,19 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               (data['total'] as num?)?.toDouble() ??
               deliveryFee;
 
-          final orderShortId = widget.orderId.length > 8 ? widget.orderId.substring(0, 8).toUpperCase() : widget.orderId.toUpperCase();
+          final orderShortId = widget.orderId.length > 8
+              ? widget.orderId.substring(0, 8).toUpperCase()
+              : widget.orderId.toUpperCase();
           final activeStepIndex = _getActiveStepIndex(effectiveOrder.stage);
-          final isDeliveryPinStage = effectiveOrder.stage == OrderStage.awaitingDeliveryCode ||
-              effectiveOrder.stage == OrderStage.readyToMarkDelivered;
-          final isUnclaimed = (data['riderId'] == null || (data['riderId'] as String).isEmpty) &&
+          final isDeliveryPinStage =
+              effectiveOrder.stage == OrderStage.awaitingDeliveryCode ||
+                  effectiveOrder.stage == OrderStage.readyToMarkDelivered;
+          final isUnclaimed = (data['riderId'] == null ||
+                  (data['riderId'] as String).isEmpty) &&
               (data['broadcastStatus'] == 'broadcasting' ||
-               data['status'] == 'ready_for_pickup' ||
-               data['status'] == 'preparing' ||
-               data['status'] == 'pending');
+                  data['status'] == 'ready_for_pickup' ||
+                  data['status'] == 'preparing' ||
+                  data['status'] == 'pending');
 
           return SafeArea(
             child: Align(
@@ -1113,7 +1225,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 context: context,
                 maxWidth: 600,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1136,7 +1249,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         _getStageTitle(effectiveOrder.stage),
@@ -1215,7 +1329,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     ? null
                                     : (isUnclaimed
                                         ? () => _acceptOrder(data)
-                                        : () => _handlePrimaryAction(effectiveOrder, isDark, purpleColor)),
+                                        : () => _handlePrimaryAction(
+                                            effectiveOrder,
+                                            isDark,
+                                            purpleColor)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: purpleColor,
                                   foregroundColor: Colors.white,
@@ -1236,7 +1353,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     : Text(
                                         isUnclaimed
                                             ? 'Accept Delivery'
-                                            : _getPrimaryButtonLabel(effectiveOrder.stage),
+                                            : _getPrimaryButtonLabel(
+                                                effectiveOrder.stage),
                                         style: TextStyle(
                                           fontSize: AppTypography.font(15),
                                           fontWeight: FontWeight.bold,
@@ -1247,8 +1365,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             ),
 
                             if (!isUnclaimed &&
-                                (effectiveOrder.stage == OrderStage.enRouteToRestaurant ||
-                                 effectiveOrder.stage == OrderStage.atRestaurant)) ...[
+                                (effectiveOrder.stage ==
+                                        OrderStage.enRouteToRestaurant ||
+                                    effectiveOrder.stage ==
+                                        OrderStage.atRestaurant)) ...[
                               const SizedBox(height: 10),
                               SizedBox(
                                 width: double.infinity,
@@ -1263,9 +1383,13 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                             purpleColor,
                                           ),
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: Theme.of(context).colorScheme.error,
+                                    foregroundColor:
+                                        Theme.of(context).colorScheme.error,
                                     side: BorderSide(
-                                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.35),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .error
+                                          .withValues(alpha: 0.35),
                                       width: 1,
                                     ),
                                     elevation: 0,
@@ -1279,7 +1403,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                       Icon(
                                         LucideIcons.triangleAlert,
                                         size: 16,
-                                        color: Theme.of(context).colorScheme.error,
+                                        color:
+                                            Theme.of(context).colorScheme.error,
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
@@ -1287,7 +1412,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                         style: TextStyle(
                                           fontSize: AppTypography.font(13),
                                           fontWeight: FontWeight.w700,
-                                          color: Theme.of(context).colorScheme.error,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .error,
                                         ),
                                       ),
                                     ],
@@ -1299,7 +1426,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                         ),
                       ),
                       const SectionDivider(
-                        margin: EdgeInsets.only(left: -18, right: -18, top: 16, bottom: 16),
+                        margin: EdgeInsets.only(
+                            left: -18, right: -18, top: 16, bottom: 16),
                       ),
 
                       // ── CARD 2: Pick Up & Drop Off Route ─────────────────────────
@@ -1323,25 +1451,32 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                   height: 38,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: isDark ? AppTheme.darkSurface : const Color(0xFFFAF5FF),
+                                    color: isDark
+                                        ? AppTheme.darkSurface
+                                        : const Color(0xFFFAF5FF),
                                     border: Border.all(
-                                      color: isDark ? AppTheme.darkBorder : const Color(0xFFE9D5FF),
+                                      color: isDark
+                                          ? AppTheme.darkBorder
+                                          : const Color(0xFFE9D5FF),
                                       width: 1,
                                     ),
                                   ),
                                   child: Center(
-                                    child: Icon(LucideIcons.store, size: 18, color: purpleColor),
+                                    child: Icon(LucideIcons.store,
+                                        size: 18, color: purpleColor),
                                   ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Pick Up',
                                         style: TextStyle(
-                                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                          fontSize: AppTypography.font(
+                                              AppFontSizes.bodySmall),
                                           fontWeight: FontWeight.w600,
                                           color: purpleColor,
                                         ),
@@ -1375,16 +1510,25 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     _buildCircleAction(
                                       icon: LucideIcons.phone,
                                       purpleColor: purpleColor,
-                                      borderColor: isDark ? AppTheme.darkBorder : const Color(0xFFE9D5FF),
-                                      bgColor: isDark ? AppTheme.darkSurface : const Color(0xFFFAF5FF),
-                                      onTap: () => _callVendor(vendorId, restaurantPhone),
+                                      borderColor: isDark
+                                          ? AppTheme.darkBorder
+                                          : const Color(0xFFE9D5FF),
+                                      bgColor: isDark
+                                          ? AppTheme.darkSurface
+                                          : const Color(0xFFFAF5FF),
+                                      onTap: () => _callVendor(
+                                          vendorId, restaurantPhone),
                                     ),
                                     const SizedBox(width: 8),
                                     _buildCircleAction(
                                       icon: LucideIcons.mail,
                                       purpleColor: purpleColor,
-                                      borderColor: isDark ? AppTheme.darkBorder : const Color(0xFFE9D5FF),
-                                      bgColor: isDark ? AppTheme.darkSurface : const Color(0xFFFAF5FF),
+                                      borderColor: isDark
+                                          ? AppTheme.darkBorder
+                                          : const Color(0xFFE9D5FF),
+                                      bgColor: isDark
+                                          ? AppTheme.darkSurface
+                                          : const Color(0xFFFAF5FF),
                                       onTap: () {
                                         context.push('/conversation', extra: {
                                           'id': vendorId,
@@ -1401,8 +1545,13 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
                             // Vertical Dotted Connector
                             Padding(
-                              padding: const EdgeInsets.only(left: 18, top: 4, bottom: 4),
-                              child: _buildVerticalDottedLine(height: 28, color: isDark ? AppTheme.darkBorder : const Color(0xFFCBD5E1)),
+                              padding: const EdgeInsets.only(
+                                  left: 18, top: 4, bottom: 4),
+                              child: _buildVerticalDottedLine(
+                                  height: 28,
+                                  color: isDark
+                                      ? AppTheme.darkBorder
+                                      : const Color(0xFFCBD5E1)),
                             ),
 
                             // Drop Off Section
@@ -1414,25 +1563,32 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                   height: 38,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: isDark ? AppTheme.darkSurface : const Color(0xFFFAF5FF),
+                                    color: isDark
+                                        ? AppTheme.darkSurface
+                                        : const Color(0xFFFAF5FF),
                                     border: Border.all(
-                                      color: isDark ? AppTheme.darkBorder : const Color(0xFFE9D5FF),
+                                      color: isDark
+                                          ? AppTheme.darkBorder
+                                          : const Color(0xFFE9D5FF),
                                       width: 1,
                                     ),
                                   ),
                                   child: Center(
-                                    child: Icon(LucideIcons.mapPin, size: 18, color: purpleColor),
+                                    child: Icon(LucideIcons.mapPin,
+                                        size: 18, color: purpleColor),
                                   ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Drop Off',
                                         style: TextStyle(
-                                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                          fontSize: AppTypography.font(
+                                              AppFontSizes.bodySmall),
                                           fontWeight: FontWeight.w600,
                                           color: purpleColor,
                                         ),
@@ -1465,16 +1621,24 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     _buildCircleAction(
                                       icon: LucideIcons.phone,
                                       purpleColor: purpleColor,
-                                      borderColor: isDark ? AppTheme.darkBorder : const Color(0xFFE9D5FF),
-                                      bgColor: isDark ? AppTheme.darkSurface : const Color(0xFFFAF5FF),
+                                      borderColor: isDark
+                                          ? AppTheme.darkBorder
+                                          : const Color(0xFFE9D5FF),
+                                      bgColor: isDark
+                                          ? AppTheme.darkSurface
+                                          : const Color(0xFFFAF5FF),
                                       onTap: () => _makeCall(customerPhone),
                                     ),
                                     const SizedBox(width: 8),
                                     _buildCircleAction(
                                       icon: LucideIcons.mail,
                                       purpleColor: purpleColor,
-                                      borderColor: isDark ? AppTheme.darkBorder : const Color(0xFFE9D5FF),
-                                      bgColor: isDark ? AppTheme.darkSurface : const Color(0xFFFAF5FF),
+                                      borderColor: isDark
+                                          ? AppTheme.darkBorder
+                                          : const Color(0xFFE9D5FF),
+                                      bgColor: isDark
+                                          ? AppTheme.darkSurface
+                                          : const Color(0xFFFAF5FF),
                                       onTap: () {
                                         context.push('/conversation', extra: {
                                           'id': customerId,
@@ -1492,19 +1656,29 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                         ),
                       ),
                       const SectionDivider(
-                        margin: EdgeInsets.only(left: -18, right: -18, top: 16, bottom: 16),
+                        margin: EdgeInsets.only(
+                            left: -18, right: -18, top: 16, bottom: 16),
                       ),
 
                       // ── SECTION: Order & Delivered Date & Time ─────────────
                       Builder(
                         builder: (context) {
-                          final rawStatus = (data['status'] ?? effectiveOrder.stage.name).toString().toLowerCase();
-                          final isDelivered = rawStatus == 'delivered' || rawStatus == 'completed' || effectiveOrder.stage == OrderStage.delivered;
+                          final rawStatus =
+                              (data['status'] ?? effectiveOrder.stage.name)
+                                  .toString()
+                                  .toLowerCase();
+                          final isDelivered = rawStatus == 'delivered' ||
+                              rawStatus == 'completed' ||
+                              effectiveOrder.stage == OrderStage.delivered;
                           final dynamic orderCreatedAt = data['createdAt'] ??
                               data['orderDate'] ??
-                              (data['timeline'] is Map ? data['timeline']['placedAt'] : null);
+                              (data['timeline'] is Map
+                                  ? data['timeline']['placedAt']
+                                  : null);
                           final dynamic deliveredAt = data['deliveredAt'] ??
-                              (data['timeline'] is Map ? data['timeline']['deliveredAt'] : null);
+                              (data['timeline'] is Map
+                                  ? data['timeline']['deliveredAt']
+                                  : null);
 
                           return Container(
                             width: double.infinity,
@@ -1522,10 +1696,12 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: purpleColor.withValues(alpha: 0.1),
+                                        color:
+                                            purpleColor.withValues(alpha: 0.1),
                                         shape: BoxShape.circle,
                                       ),
-                                      child: Icon(LucideIcons.calendarClock, size: 16, color: purpleColor),
+                                      child: Icon(LucideIcons.calendarClock,
+                                          size: 16, color: purpleColor),
                                     ),
                                     const SizedBox(width: 10),
                                     Text(
@@ -1540,12 +1716,14 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       'Order Date & Time',
                                       style: TextStyle(
-                                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                        fontSize: AppTypography.font(
+                                            AppFontSizes.bodySmall),
                                         fontWeight: FontWeight.w500,
                                         color: mutedTextColor,
                                       ),
@@ -1553,7 +1731,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     Text(
                                       _formatDateTime(orderCreatedAt),
                                       style: TextStyle(
-                                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                        fontSize: AppTypography.font(
+                                            AppFontSizes.bodySmall),
                                         fontWeight: FontWeight.w600,
                                         color: primaryTextColor,
                                       ),
@@ -1563,16 +1742,20 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                 if (isDelivered || deliveredAt != null) ...[
                                   const SizedBox(height: 12),
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Row(
                                         children: [
-                                          const Icon(LucideIcons.circleCheck, size: 15, color: Color(0xFF10B981)),
+                                          const Icon(LucideIcons.circleCheck,
+                                              size: 15,
+                                              color: Color(0xFF10B981)),
                                           const SizedBox(width: 6),
                                           Text(
                                             'Delivered Date & Time',
                                             style: TextStyle(
-                                              fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                              fontSize: AppTypography.font(
+                                                  AppFontSizes.bodySmall),
                                               fontWeight: FontWeight.w500,
                                               color: mutedTextColor,
                                             ),
@@ -1580,9 +1763,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                         ],
                                       ),
                                       Text(
-                                        _formatDateTime(deliveredAt ?? data['updatedAt']),
+                                        _formatDateTime(
+                                            deliveredAt ?? data['updatedAt']),
                                         style: TextStyle(
-                                          fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                          fontSize: AppTypography.font(
+                                              AppFontSizes.bodySmall),
                                           fontWeight: FontWeight.w700,
                                           color: const Color(0xFF10B981),
                                         ),
@@ -1596,7 +1781,81 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                         },
                       ),
                       const SectionDivider(
-                        margin: EdgeInsets.only(left: -18, right: -18, top: 16, bottom: 16),
+                        margin: EdgeInsets.only(
+                            left: -18, right: -18, top: 16, bottom: 16),
+                      ),
+
+                      // ── SECTION: Customer Note (riderNote) ─────────────────
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: borderColor, width: 1),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: purpleColor.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(LucideIcons.notepadText,
+                                      size: 16, color: purpleColor),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Customer Note',
+                                  style: TextStyle(
+                                    fontSize: AppTypography.font(
+                                        AppFontSizes.titleSmall),
+                                    fontWeight: FontWeight.w700,
+                                    color: primaryTextColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppTheme.darkSurface
+                                    : AppTheme.lightInputFill,
+                                borderRadius: BorderRadius.circular(14),
+                                border:
+                                    Border.all(color: borderColor, width: 1),
+                              ),
+                              child: Text(
+                                customerNote.isNotEmpty
+                                    ? customerNote
+                                    : 'No note provided by customer.',
+                                style: TextStyle(
+                                  fontSize: AppTypography.font(
+                                      AppFontSizes.bodySmall),
+                                  fontWeight: customerNote.isNotEmpty
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                  color: customerNote.isNotEmpty
+                                      ? primaryTextColor
+                                      : mutedTextColor,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SectionDivider(
+                        margin: EdgeInsets.only(
+                            left: -18, right: -18, top: 16, bottom: 16),
                       ),
 
                       // ── CARD 3: Order Items & Subtotal ───────────────────────────
@@ -1637,21 +1896,35 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             const SizedBox(height: 14),
 
                             // Items List
-                            if (items.isEmpty && effectiveOrder.menuLines.isEmpty)
+                            if (items.isEmpty &&
+                                effectiveOrder.menuLines.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
                                 child: Text(
                                   'Prepared dishes for delivery',
-                                  style: TextStyle(color: mutedTextColor, fontSize: AppTypography.font(13)),
+                                  style: TextStyle(
+                                      color: mutedTextColor,
+                                      fontSize: AppTypography.font(13)),
                                 ),
                               )
                             else if (items.isNotEmpty)
                               ...items.map((item) {
-                                final iMap = item is Map<String, dynamic> ? item : <String, dynamic>{};
-                                final name = (iMap['name'] ?? iMap['title'] ?? 'Food Item').toString();
-                                final quantity = (iMap['quantity'] ?? iMap['qty'] ?? 1).toString();
-                                final price = (iMap['price'] as num?)?.toDouble() ?? 0.0;
-                                final imgUrl = (iMap['imageUrl'] ?? iMap['image'] ?? '').toString();
+                                final iMap = item is Map<String, dynamic>
+                                    ? item
+                                    : <String, dynamic>{};
+                                final name = (iMap['name'] ??
+                                        iMap['title'] ??
+                                        'Food Item')
+                                    .toString();
+                                final quantity =
+                                    (iMap['quantity'] ?? iMap['qty'] ?? 1)
+                                        .toString();
+                                final price =
+                                    (iMap['price'] as num?)?.toDouble() ?? 0.0;
+                                final imgUrl =
+                                    (iMap['imageUrl'] ?? iMap['image'] ?? '')
+                                        .toString();
 
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 12),
@@ -1662,20 +1935,31 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                         child: Container(
                                           width: 44,
                                           height: 44,
-                                          color: purpleColor.withValues(alpha: 0.08),
+                                          color: purpleColor.withValues(
+                                              alpha: 0.08),
                                           child: imgUrl.isNotEmpty
                                               ? CachedNetworkImage(
                                                   imageUrl: imgUrl,
                                                   fit: BoxFit.cover,
                                                   placeholder: (c, u) => Center(
-                                                    child: Icon(LucideIcons.utensils, size: 18, color: purpleColor),
+                                                    child: Icon(
+                                                        LucideIcons.utensils,
+                                                        size: 18,
+                                                        color: purpleColor),
                                                   ),
-                                                  errorWidget: (c, u, e) => Center(
-                                                    child: Icon(LucideIcons.utensils, size: 18, color: purpleColor),
+                                                  errorWidget: (c, u, e) =>
+                                                      Center(
+                                                    child: Icon(
+                                                        LucideIcons.utensils,
+                                                        size: 18,
+                                                        color: purpleColor),
                                                   ),
                                                 )
                                               : Center(
-                                                  child: Icon(LucideIcons.utensils, size: 18, color: purpleColor),
+                                                  child: Icon(
+                                                      LucideIcons.utensils,
+                                                      size: 18,
+                                                      color: purpleColor),
                                                 ),
                                         ),
                                       ),
@@ -1712,11 +1996,14 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                         width: 44,
                                         height: 44,
                                         decoration: BoxDecoration(
-                                          color: purpleColor.withValues(alpha: 0.08),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: purpleColor.withValues(
+                                              alpha: 0.08),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
                                         child: Center(
-                                          child: Icon(LucideIcons.utensils, size: 18, color: purpleColor),
+                                          child: Icon(LucideIcons.utensils,
+                                              size: 18, color: purpleColor),
                                         ),
                                       ),
                                       const SizedBox(width: 12),
@@ -1740,13 +2027,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             // Sub-total Pill Box Banner
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
-                                color: isDark ? purpleColor.withValues(alpha: 0.18) : const Color(0xFFEDE9FE),
+                                color: isDark
+                                    ? purpleColor.withValues(alpha: 0.18)
+                                    : const Color(0xFFEDE9FE),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'Sub-total',
@@ -1770,43 +2061,6 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                           ],
                         ),
                       ),
-
-                      // Customer Note / Instructions (if present)
-                      if (customerNote.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: cardBg,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: borderColor, width: 1),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: purpleColor.withValues(alpha: 0.08),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(LucideIcons.notepadText, size: 16, color: purpleColor),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  customerNote,
-                                  style: TextStyle(
-                                    fontSize: AppTypography.font(12),
-                                    color: primaryTextColor,
-                                    height: 1.3,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
 
                       const SizedBox(height: 24),
                     ],
@@ -1861,9 +2115,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   height: 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: i <= activeStepIndex ? purpleColor : (isDark ? AppTheme.darkSurface : const Color(0xFFF8FAFC)),
+                    color: i <= activeStepIndex
+                        ? purpleColor
+                        : (isDark
+                            ? AppTheme.darkSurface
+                            : const Color(0xFFF8FAFC)),
                     border: Border.all(
-                      color: i <= activeStepIndex ? purpleColor : (isDark ? AppTheme.darkBorder : const Color(0xFFE2E8F0)),
+                      color: i <= activeStepIndex
+                          ? purpleColor
+                          : (isDark
+                              ? AppTheme.darkBorder
+                              : const Color(0xFFE2E8F0)),
                       width: 1,
                     ),
                   ),
@@ -1871,7 +2133,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     child: Icon(
                       steps[i].icon,
                       size: 16,
-                      color: i <= activeStepIndex ? Colors.white : (isDark ? Colors.grey[500] : const Color(0xFF94A3B8)),
+                      color: i <= activeStepIndex
+                          ? Colors.white
+                          : (isDark
+                              ? Colors.grey[500]
+                              : const Color(0xFF94A3B8)),
                     ),
                   ),
                 ),
@@ -1883,7 +2149,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: AppTypography.font(AppFontSizes.caption),
-                    fontWeight: i <= activeStepIndex ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: i <= activeStepIndex
+                        ? FontWeight.w700
+                        : FontWeight.w500,
                     color: i <= activeStepIndex ? purpleColor : mutedTextColor,
                   ),
                 ),
@@ -1937,7 +2205,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA),
+                color:
+                    isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA),
                 width: 1,
               ),
             ),
@@ -1946,7 +2215,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 Icon(
                   LucideIcons.circleAlert,
                   size: 14,
-                  color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
+                  color: isDark
+                      ? const Color(0xFFFCA5A5)
+                      : const Color(0xFFDC2626),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
@@ -1955,7 +2226,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     style: TextStyle(
                       fontSize: AppTypography.font(AppFontSizes.bodySmall),
                       fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
+                      color: isDark
+                          ? const Color(0xFFFCA5A5)
+                          : const Color(0xFFDC2626),
                     ),
                   ),
                 ),
@@ -2015,7 +2288,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                       final isFilled = index < pinText.length;
                       final digit = isFilled ? pinText[index] : '';
                       final isCurrentFocus = _pinFocusNode.hasFocus &&
-                          (index == pinText.length || (index == 3 && pinText.length == 4));
+                          (index == pinText.length ||
+                              (index == 3 && pinText.length == 4));
 
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 5),
@@ -2025,7 +2299,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                           color: isDark
                               ? AppTheme.darkSurface
                               : (isFilled
-                                  ? const Color(0xFFF3E8FF).withValues(alpha: 0.6)
+                                  ? const Color(0xFFF3E8FF)
+                                      .withValues(alpha: 0.6)
                                   : const Color(0xFFF8FAFC)),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
@@ -2123,7 +2398,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     );
   }
 
-  Widget _buildVerticalDottedLine({required double height, required Color color}) {
+  Widget _buildVerticalDottedLine(
+      {required double height, required Color color}) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(4, (_) {
@@ -2168,21 +2444,34 @@ class _VendorStoreAddressText extends StatelessWidget {
       return Text(fallbackAddress, style: style);
     }
     if (vendorId.isEmpty) {
-      return Text(fallbackAddress.isNotEmpty ? fallbackAddress : 'Store Location', style: style);
+      return Text(
+          fallbackAddress.isNotEmpty ? fallbackAddress : 'Store Location',
+          style: style);
     }
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('vendors').doc(vendorId).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('vendors')
+          .doc(vendorId)
+          .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
+        if (snapshot.hasData &&
+            snapshot.data != null &&
+            snapshot.data!.exists) {
           final vData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
           final bp = vData['businessProfile'] as Map<String, dynamic>?;
-          final address = (bp?['address'] ?? bp?['storeAddress'] ?? vData['address'] ?? vData['storeAddress'])?.toString();
+          final address = (bp?['address'] ??
+                  bp?['storeAddress'] ??
+                  vData['address'] ??
+                  vData['storeAddress'])
+              ?.toString();
           if (address != null && address.trim().isNotEmpty) {
             return Text(address.trim(), style: style);
           }
         }
-        return Text(fallbackAddress.isNotEmpty ? fallbackAddress : 'Store Location', style: style);
+        return Text(
+            fallbackAddress.isNotEmpty ? fallbackAddress : 'Store Location',
+            style: style);
       },
     );
   }

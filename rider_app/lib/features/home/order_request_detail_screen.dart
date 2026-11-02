@@ -11,8 +11,10 @@ import 'package:shared_widgets/core/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/notification_service.dart';
+import '../../providers/rider_app_providers.dart';
 import '../../providers/rider_profile_provider.dart';
 import 'order_acceptance_success_sheet.dart';
+import 'order_broadcast_widgets.dart';
 
 /// Screen displaying the details of an incoming order broadcast request.
 class OrderRequestDetailScreen extends ConsumerStatefulWidget {
@@ -62,7 +64,32 @@ class _OrderRequestDetailScreenState
     final uid = _auth.currentUser?.uid;
     if (uid == null || _isProcessing) return;
 
+    final isOnline = ref.read(riderAvailabilityProvider);
+    if (!isOnline) {
+      if (mounted) {
+        showOfflineCannotAcceptOrderSheet(context: context);
+      }
+      return;
+    }
+
     final profile = ref.read(riderProfileProvider);
+    final broadcastCheck = await OrderBroadcastHelper.resolveBroadcastStatus(
+      orderData: data,
+      riderLocation: profile.currentLocation,
+    );
+    if (broadcastCheck.exceedsRadius) {
+      if (mounted) {
+        final restaurantName =
+            (data['restaurantName'] ?? 'Restaurant').toString();
+        showOutOfBroadcastRadiusSheet(
+          context: context,
+          distanceKm: broadcastCheck.distanceKm!,
+          broadcastRadiusKm: broadcastCheck.broadcastRadiusKm,
+          restaurantName: restaurantName,
+        );
+      }
+      return;
+    }
     final orderRef = _firestore.collection('orders').doc(widget.orderId);
     final riderRef = _firestore.collection('riders').doc(uid);
 
@@ -121,7 +148,7 @@ class _OrderRequestDetailScreenState
 
           await NotificationService.sendPushToCustomer(
             customerId: customerId,
-            title: 'Rider Assigned! 🚴',
+            title: 'Rider Assigned!',
             body: '$riderName has accepted your delivery for order #$displayId.',
             data: {
               'orderId': widget.orderId.replaceAll('#', ''),
@@ -338,7 +365,7 @@ class _OrderRequestDetailScreenState
                   data['customerAddress'] ??
                   'Drop-off Location')
               .toString();
-          final customerNote = (data['deliveryInstructions'] ?? data['note'] ?? data['instructions'] ?? '').toString();
+          final customerNote = (data['riderNote'] ?? data['customerNote'] ?? data['deliveryInstructions'] ?? data['note'] ?? data['instructions'] ?? '').toString().trim();
 
           final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ?? (data['fee'] as num?)?.toDouble() ?? 0.0;
           final totalAmount = (data['totalAmount'] as num?)?.toDouble() ?? (data['total'] as num?)?.toDouble() ?? deliveryFee;
@@ -583,7 +610,7 @@ class _OrderRequestDetailScreenState
                                               ),
                                             ),
                                             const SizedBox(height: 2),
-                                            _VendorAddressText(
+                                            VendorAddressText(
                                               data: data,
                                               style: TextStyle(
                                                 fontSize: AppTypography.font(AppFontSizes.bodySmall),
@@ -935,69 +962,134 @@ class _OrderRequestDetailScreenState
                                 ),
                               ],
                             )
-                          : Row(
-                              children: [
-                                // Decline Button
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 48,
-                                    child: OutlinedButton(
-                                      onPressed: _isProcessing ? null : _declineOrder,
-                                      style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
-                                        foregroundColor: const Color(0xFFEF4444),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(24),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'Decline',
-                                        style: TextStyle(
-                                          fontSize: AppTypography.font(15),
-                                          fontWeight: FontWeight.bold,
-                                          color: const Color(0xFFEF4444),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
+                          : OrderBroadcastStatusBuilder(
+                              orderData: data,
+                              riderLocation: riderProfile.currentLocation,
+                              builder: (context, broadcastStatus) {
+                                final isOnline =
+                                    ref.watch(riderAvailabilityProvider);
+                                final exceedsRadius =
+                                    broadcastStatus.exceedsRadius;
+                                final cannotAccept =
+                                    !isOnline || exceedsRadius;
+                                final disabledBg = isDark
+                                    ? AppTheme.darkBorder
+                                    : AppTheme.lightInputFill;
+                                final disabledFg =
+                                    AppTheme.mutedTextColorFor(isDark);
 
-                                // Accept Button
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 48,
-                                    child: ElevatedButton(
-                                      onPressed: _isProcessing ? null : () => _acceptOrder(data),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: purpleColor,
-                                        foregroundColor: Colors.white,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(24),
+                                return Row(
+                                  children: [
+                                    // Decline Button
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 48,
+                                        child: OutlinedButton(
+                                          onPressed: _isProcessing
+                                              ? null
+                                              : _declineOrder,
+                                          style: OutlinedButton.styleFrom(
+                                            side: const BorderSide(
+                                              color: Colors.redAccent,
+                                              width: 1.2,
+                                            ),
+                                            foregroundColor: Colors.redAccent,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(24),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'Decline',
+                                            style: TextStyle(
+                                              fontSize: AppTypography.font(
+                                                AppFontSizes.titleSmall,
+                                              ),
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.redAccent,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                      child: _isProcessing
-                                          ? const SizedBox(
-                                              width: 20,
-                                              height: 20,
-                                              child: CircularProgressIndicator(
-                                                color: Colors.white,
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : Text(
-                                              'Accept',
-                                              style: TextStyle(
-                                                fontSize: AppTypography.font(15),
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            ),
                                     ),
-                                  ),
-                                ),
-                              ],
+                                    const SizedBox(width: 14),
+
+                                    // Accept Button
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 48,
+                                        child: ElevatedButton(
+                                          onPressed: _isProcessing
+                                              ? null
+                                              : () {
+                                                  if (!isOnline) {
+                                                    showOfflineCannotAcceptOrderSheet(
+                                                      context: context,
+                                                    );
+                                                  } else if (exceedsRadius) {
+                                                    showOutOfBroadcastRadiusSheet(
+                                                      context: context,
+                                                      distanceKm:
+                                                          broadcastStatus
+                                                              .distanceKm!,
+                                                      broadcastRadiusKm:
+                                                          broadcastStatus
+                                                              .broadcastRadiusKm,
+                                                      restaurantName:
+                                                          restaurantName,
+                                                    );
+                                                  } else {
+                                                    _acceptOrder(data);
+                                                  }
+                                                },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: cannotAccept
+                                                ? disabledBg
+                                                : purpleColor,
+                                            foregroundColor: cannotAccept
+                                                ? disabledFg
+                                                : Colors.white,
+                                            elevation: 0,
+                                            side: cannotAccept
+                                                ? BorderSide(
+                                                    color: borderColor,
+                                                    width: 1,
+                                                  )
+                                                : BorderSide.none,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(24),
+                                            ),
+                                          ),
+                                          child: _isProcessing
+                                              ? const SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    color: Colors.white,
+                                                    strokeWidth: 2,
+                                                  ),
+                                                )
+                                              : Text(
+                                                  'Accept',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        AppTypography.font(
+                                                      AppFontSizes.titleSmall,
+                                                    ),
+                                                    fontWeight: FontWeight.bold,
+                                                    color: cannotAccept
+                                                        ? disabledFg
+                                                        : Colors.white,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                     ),
                   ],
@@ -1030,80 +1122,5 @@ class _OrderRequestDetailScreenState
         ),
       ),
     );
-  }
-}
-
-/// Dynamic Vendor Address with Firestore lookup & caching
-class _VendorAddressText extends StatelessWidget {
-  final Map<String, dynamic> data;
-  final TextStyle style;
-
-  const _VendorAddressText({
-    required this.data,
-    required this.style,
-  });
-
-  static final Map<String, String> _vendorAddrCache = {};
-
-  static String? extractAddress(Map<String, dynamic> data) {
-    for (final key in [
-      'restaurantAddress',
-      'pickupAddress',
-      'vendorAddress',
-      'address',
-      'storeAddress',
-      'businessAddress',
-    ]) {
-      final val = data[key]?.toString().trim() ?? '';
-      if (val.isNotEmpty && val.toLowerCase() != 'pickup location') {
-        return val;
-      }
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final direct = extractAddress(data);
-    if (direct != null) {
-      return Text(direct, style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
-    }
-
-    final vendorId = (data['vendorId'] ?? data['merchantId'] ?? data['restaurantId'] ?? '').toString();
-    if (vendorId.isNotEmpty && _vendorAddrCache.containsKey(vendorId)) {
-      return Text(_vendorAddrCache[vendorId]!, style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
-    }
-
-    if (vendorId.isNotEmpty) {
-      return FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('vendors').doc(vendorId).get(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data!.exists) {
-            final vData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-            final bProf = vData['businessProfile'] as Map<String, dynamic>?;
-            final pProf = vData['pendingBusinessProfile'] as Map<String, dynamic>?;
-
-            final addr = (bProf?['address'] ??
-                    bProf?['businessAddress'] ??
-                    pProf?['address'] ??
-                    pProf?['businessAddress'] ??
-                    vData['address'] ??
-                    vData['businessAddress'] ??
-                    vData['location'] ??
-                    '')
-                .toString()
-                .trim();
-
-            if (addr.isNotEmpty && addr.toLowerCase() != 'null') {
-              _vendorAddrCache[vendorId] = addr;
-              return Text(addr, style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
-            }
-          }
-          return Text('Pickup Location', style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
-        },
-      );
-    }
-
-    return Text('Pickup Location', style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
   }
 }

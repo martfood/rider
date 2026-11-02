@@ -117,19 +117,19 @@ class OrdersNotifier extends Notifier<OrdersState> {
             switch (status) {
               case 'rider_assigned':
                 final riderName = (orderData?['riderName'] ?? 'Your rider').toString();
-                title = 'Rider Assigned! 🚴';
+                title = 'Rider Assigned!';
                 body = '$riderName has been assigned to deliver your order.';
                 break;
               case 'at_restaurant':
-                title = 'Rider at Restaurant 🏪';
+                title = 'Rider at Restaurant';
                 body = 'Your rider has arrived at the restaurant to pick up your order.';
                 break;
               case 'in_transit':
-                title = 'Order in Transit! 🚴';
+                title = 'Order in Transit!';
                 body = 'Your rider is on the way with your order from ${order.restaurantName}.';
                 break;
               case 'arrived':
-                title = 'Order has Arrived! 📦';
+                title = 'Order has Arrived!';
                 body = 'Your rider is at your location. Please share delivery PIN: ${order.deliveryCode}.';
                 break;
             }
@@ -306,7 +306,7 @@ class OrdersNotifier extends Notifier<OrdersState> {
         if (customerId != null && customerId.isNotEmpty) {
           await NotificationService.sendPushToCustomer(
             customerId: customerId,
-            title: 'Order Delivered! 🍕',
+            title: 'Order Delivered!',
             body: 'Your order #$id from $restaurantName has been delivered successfully.',
             data: {'type': 'order_status', 'orderId': id, 'status': 'delivered'},
           );
@@ -323,7 +323,7 @@ class OrdersNotifier extends Notifier<OrdersState> {
 <body style="font-family: sans-serif; background-color: #f8fafc; padding: 20px; color: #334155; line-height: 1.6;">
   <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; padding: 0; border: 1px solid #e2e8f0; overflow: hidden;">
     <div style="background-color: #7C3AED; padding: 24px; text-align: center;">
-      <h2 style="color: #ffffff; margin: 0; font-size: 22px;">Order Delivered! 🍕</h2>
+      <h2 style="color: #ffffff; margin: 0; font-size: 22px;">Order Delivered!</h2>
     </div>
     <div style="padding: 24px;">
       <p>Hi $customerName,</p>
@@ -333,7 +333,7 @@ class OrdersNotifier extends Notifier<OrdersState> {
         <p style="margin: 4px 0;"><strong>Order ID:</strong> #$id</p>
         <p style="margin: 4px 0;"><strong>Restaurant:</strong> $restaurantName</p>
         <p style="margin: 4px 0;"><strong>Total Amount:</strong> ₦${orderTotal.toStringAsFixed(2)}</p>
-        <p style="margin: 4px 0;"><strong>Status:</strong> ✅ Delivered</p>
+        <p style="margin: 4px 0;"><strong>Status:</strong> Delivered</p>
       </div>
       <p>Please rate your rider in the app to help us improve the delivery experience.</p>
       <br/>
@@ -384,7 +384,7 @@ class OrdersNotifier extends Notifier<OrdersState> {
 <body style="font-family: sans-serif; background-color: #f8fafc; padding: 20px; color: #334155; line-height: 1.6;">
   <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; padding: 0; border: 1px solid #e2e8f0; overflow: hidden;">
     <div style="background-color: #7C3AED; padding: 24px; text-align: center;">
-      <h2 style="color: #ffffff; margin: 0; font-size: 22px;">Order Completed &amp; Delivered! 🏪 ✅</h2>
+      <h2 style="color: #ffffff; margin: 0; font-size: 22px;">Order Completed &amp; Delivered!</h2>
     </div>
     <div style="padding: 24px;">
       <p>Hi $vendorName,</p>
@@ -394,7 +394,7 @@ class OrdersNotifier extends Notifier<OrdersState> {
         <p style="margin: 4px 0;"><strong>Order ID:</strong> #$id</p>
         <p style="margin: 4px 0;"><strong>Customer Name:</strong> $customerName</p>
         <p style="margin: 4px 0;"><strong>Total Earned:</strong> ₦${subtotal.toStringAsFixed(2)}</p>
-        <p style="margin: 4px 0;"><strong>Status:</strong> ✅ Completed &amp; Delivered</p>
+        <p style="margin: 4px 0;"><strong>Status:</strong> Completed &amp; Delivered</p>
       </div>
       <h4 style="color: #0f172a; margin-bottom: 8px;">Items Details:</h4>
       <ul style="padding-left: 20px; color: #475569; margin-top: 0;">

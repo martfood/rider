@@ -106,14 +106,17 @@ class _OrderRequestDetailScreenState
         final broadcastStatus = currentData['broadcastStatus'] as String? ?? '';
         final existingRiderId = currentData['riderId'] as String? ?? '';
 
-        if (broadcastStatus == 'claimed' || (existingRiderId.isNotEmpty && existingRiderId != uid)) {
+        if (broadcastStatus == 'claimed' ||
+            (existingRiderId.isNotEmpty && existingRiderId != uid)) {
           throw Exception('Another rider has already accepted this order.');
         }
 
         transaction.update(orderRef, {
           'broadcastStatus': 'claimed',
           'riderId': uid,
-          'riderName': profile.displayName.isNotEmpty ? profile.displayName : 'Assigned Rider',
+          'riderName': profile.displayName.isNotEmpty
+              ? profile.displayName
+              : 'Assigned Rider',
           'riderPhone': profile.phone,
           'status': 'rider_assigned',
           'acceptedAt': FieldValue.serverTimestamp(),
@@ -142,14 +145,20 @@ class _OrderRequestDetailScreenState
         }
 
         if (customerId != null && customerId.isNotEmpty) {
-          final rawNum = (data['orderNumber'] ?? widget.orderId).toString().replaceAll('#', '');
-          final displayId = rawNum.length > 6 ? rawNum.substring(rawNum.length - 6).toUpperCase() : rawNum.toUpperCase();
-          final riderName = profile.displayName.isNotEmpty ? profile.displayName : 'A rider';
+          final rawNum = (data['orderNumber'] ?? widget.orderId)
+              .toString()
+              .replaceAll('#', '');
+          final displayId = rawNum.length > 6
+              ? rawNum.substring(rawNum.length - 6).toUpperCase()
+              : rawNum.toUpperCase();
+          final riderName =
+              profile.displayName.isNotEmpty ? profile.displayName : 'A rider';
 
           await NotificationService.sendPushToCustomer(
             customerId: customerId,
             title: 'Rider Assigned!',
-            body: '$riderName has accepted your delivery for order #$displayId.',
+            body:
+                '$riderName has accepted your delivery for order #$displayId.',
             data: {
               'orderId': widget.orderId.replaceAll('#', ''),
               'type': 'order_status',
@@ -165,10 +174,17 @@ class _OrderRequestDetailScreenState
 
       if (mounted) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final restaurantName = (data['restaurantName'] ?? 'Restaurant').toString();
-        final restaurantAddress = (data['restaurantAddress'] ?? data['pickupAddress'] ?? 'Pickup Location').toString();
-        final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ?? (data['fee'] as num?)?.toDouble() ?? 0.0;
-        final deliveryFeeLabel = '₦${deliveryFee.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+        final restaurantName =
+            (data['restaurantName'] ?? 'Restaurant').toString();
+        final restaurantAddress = (data['restaurantAddress'] ??
+                data['pickupAddress'] ??
+                'Pickup Location')
+            .toString();
+        final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ??
+            (data['fee'] as num?)?.toDouble() ??
+            0.0;
+        final deliveryFeeLabel =
+            '₦${deliveryFee.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
 
         // Pop current request detail screen and show success bottom sheet
         context.pop();
@@ -219,12 +235,16 @@ class _OrderRequestDetailScreenState
     return null;
   }
 
-  static double _calcHaversine(double lat1, double lon1, double lat2, double lon2) {
+  static double _calcHaversine(
+      double lat1, double lon1, double lat2, double lon2) {
     const r = 6371.0;
     final dLat = (lat2 - lat1) * (pi / 180.0);
     final dLon = (lon2 - lon1) * (pi / 180.0);
     final a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1 * (pi / 180.0)) * cos(lat2 * (pi / 180.0)) * sin(dLon / 2) * sin(dLon / 2);
+        cos(lat1 * (pi / 180.0)) *
+            cos(lat2 * (pi / 180.0)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return r * c;
   }
@@ -259,7 +279,8 @@ class _OrderRequestDetailScreenState
                 border: Border.all(color: borderColor, width: 1),
               ),
               child: IconButton(
-                icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black, size: 20),
+                icon: Icon(Icons.arrow_back,
+                    color: isDark ? Colors.white : Colors.black, size: 20),
                 onPressed: () => context.pop(),
                 padding: EdgeInsets.zero,
               ),
@@ -278,7 +299,8 @@ class _OrderRequestDetailScreenState
       body: StreamBuilder<DocumentSnapshot>(
         stream: _firestore.collection('orders').doc(widget.orderId).snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return Center(child: CircularProgressIndicator(color: purpleColor));
           }
 
@@ -295,7 +317,8 @@ class _OrderRequestDetailScreenState
                         color: purpleColor.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(LucideIcons.packageX, size: 40, color: purpleColor),
+                      child: Icon(LucideIcons.packageX,
+                          size: 40, color: purpleColor),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -340,7 +363,8 @@ class _OrderRequestDetailScreenState
           final rawStatus = (data['status'] ?? '').toString();
 
           // If assigned to CURRENT rider, redirect to active delivery screen
-          final isAssignedToCurrentRider = assignedRiderId.isNotEmpty && assignedRiderId == currentUid;
+          final isAssignedToCurrentRider =
+              assignedRiderId.isNotEmpty && assignedRiderId == currentUid;
           if (isAssignedToCurrentRider && !_hasRedirected) {
             _hasRedirected = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -351,24 +375,45 @@ class _OrderRequestDetailScreenState
           }
 
           // Check if order is already claimed by ANOTHER rider or no longer broadcasting
-          final isClaimedByOther = (assignedRiderId.isNotEmpty && assignedRiderId != currentUid) ||
-              (broadcastStatus == 'claimed' && !isAssignedToCurrentRider) ||
-              rawStatus == 'delivered' ||
-              rawStatus == 'cancelled';
+          final isClaimedByOther =
+              (assignedRiderId.isNotEmpty && assignedRiderId != currentUid) ||
+                  (broadcastStatus == 'claimed' && !isAssignedToCurrentRider) ||
+                  rawStatus == 'delivered' ||
+                  rawStatus == 'cancelled';
 
           final items = (data['items'] as List<dynamic>?) ?? [];
-          final restaurantName = (data['restaurantName'] ?? 'Restaurant').toString();
-          final customerName = (data['customerName'] ?? data['recipientName'] ?? 'Customer').toString();
-          final customerPhone = (data['customerPhone'] ?? data['recipientPhone'] ?? data['phone'] ?? '').toString();
-          final customerAddress = ((data['deliveryAddress'] is Map ? data['deliveryAddress']['address'] : null) ??
+          final restaurantName =
+              (data['restaurantName'] ?? 'Restaurant').toString();
+          final customerName =
+              (data['customerName'] ?? data['recipientName'] ?? 'Customer')
+                  .toString();
+          final customerPhone = (data['customerPhone'] ??
+                  data['recipientPhone'] ??
+                  data['phone'] ??
+                  '')
+              .toString();
+          final customerAddress = ((data['deliveryAddress'] is Map
+                      ? data['deliveryAddress']['address']
+                      : null) ??
                   data['dropoffAddress'] ??
                   data['customerAddress'] ??
                   'Drop-off Location')
               .toString();
-          final customerNote = (data['riderNote'] ?? data['customerNote'] ?? data['deliveryInstructions'] ?? data['note'] ?? data['instructions'] ?? '').toString().trim();
+          final customerNote = (data['riderNote'] ??
+                  data['customerNote'] ??
+                  data['deliveryInstructions'] ??
+                  data['note'] ??
+                  data['instructions'] ??
+                  '')
+              .toString()
+              .trim();
 
-          final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ?? (data['fee'] as num?)?.toDouble() ?? 0.0;
-          final totalAmount = (data['totalAmount'] as num?)?.toDouble() ?? (data['total'] as num?)?.toDouble() ?? deliveryFee;
+          final deliveryFee = (data['deliveryFee'] as num?)?.toDouble() ??
+              (data['fee'] as num?)?.toDouble() ??
+              0.0;
+          final totalAmount = (data['totalAmount'] as num?)?.toDouble() ??
+              (data['total'] as num?)?.toDouble() ??
+              deliveryFee;
 
           // Distance calculation
           final riderProfile = ref.watch(riderProfileProvider);
@@ -382,10 +427,13 @@ class _OrderRequestDetailScreenState
 
           double distanceKm = 4.2;
           if (vendorLoc != null) {
-            distanceKm = _calcHaversine(riderLat, riderLng, vendorLoc.latitude, vendorLoc.longitude);
+            distanceKm = _calcHaversine(
+                riderLat, riderLng, vendorLoc.latitude, vendorLoc.longitude);
           }
 
-          final orderShortId = widget.orderId.length > 8 ? widget.orderId.substring(0, 8).toUpperCase() : widget.orderId.toUpperCase();
+          final orderShortId = widget.orderId.length > 8
+              ? widget.orderId.substring(0, 8).toUpperCase()
+              : widget.orderId.toUpperCase();
 
           return SafeArea(
             child: Align(
@@ -397,7 +445,8 @@ class _OrderRequestDetailScreenState
                   children: [
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -408,29 +457,43 @@ class _OrderRequestDetailScreenState
                               decoration: BoxDecoration(
                                 color: cardBg,
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: borderColor, width: 1),
+                                border:
+                                    Border.all(color: borderColor, width: 1),
                               ),
                               child: Column(
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 5),
                                         decoration: BoxDecoration(
                                           color: isClaimedByOther
-                                              ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2))
-                                              : (isDark ? const Color(0xFF064E3B) : const Color(0xFFE8F5E9)),
-                                          borderRadius: BorderRadius.circular(20),
+                                              ? (isDark
+                                                  ? const Color(0xFF450A0A)
+                                                  : const Color(0xFFFEF2F2))
+                                              : (isDark
+                                                  ? const Color(0xFF064E3B)
+                                                  : const Color(0xFFE8F5E9)),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
                                         ),
                                         child: Text(
-                                          isClaimedByOther ? 'Already Claimed' : 'New Order Request',
+                                          isClaimedByOther
+                                              ? 'Already Claimed'
+                                              : 'New Order Request',
                                           style: TextStyle(
                                             fontSize: AppTypography.font(12),
                                             fontWeight: FontWeight.w700,
                                             color: isClaimedByOther
-                                                ? (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626))
-                                                : (isDark ? const Color(0xFF6EE7B7) : const Color(0xFF2E7D32)),
+                                                ? (isDark
+                                                    ? const Color(0xFFFCA5A5)
+                                                    : const Color(0xFFDC2626))
+                                                : (isDark
+                                                    ? const Color(0xFF6EE7B7)
+                                                    : const Color(0xFF2E7D32)),
                                           ),
                                         ),
                                       ),
@@ -465,11 +528,15 @@ class _OrderRequestDetailScreenState
 
                                   // Sub-container for Time & Distance
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 14),
                                     decoration: BoxDecoration(
-                                      color: isDark ? AppTheme.darkSurface : const Color(0xFFFAF5FF),
+                                      color: isDark
+                                          ? AppTheme.darkSurface
+                                          : const Color(0xFFFAF5FF),
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: borderColor, width: 0.5),
+                                      border: Border.all(
+                                          color: borderColor, width: 0.5),
                                     ),
                                     child: Row(
                                       children: [
@@ -478,23 +545,32 @@ class _OrderRequestDetailScreenState
                                           child: Row(
                                             children: [
                                               Container(
-                                                padding: const EdgeInsets.all(8),
+                                                padding:
+                                                    const EdgeInsets.all(8),
                                                 decoration: BoxDecoration(
-                                                  color: purpleColor.withValues(alpha: 0.12),
+                                                  color: purpleColor.withValues(
+                                                      alpha: 0.12),
                                                   shape: BoxShape.circle,
                                                 ),
-                                                child: Icon(LucideIcons.clock, size: 16, color: purpleColor),
+                                                child: Icon(LucideIcons.clock,
+                                                    size: 16,
+                                                    color: purpleColor),
                                               ),
                                               const SizedBox(width: 10),
                                               Expanded(
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
                                                       'Est. Time',
                                                       style: TextStyle(
-                                                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
-                                                        fontWeight: FontWeight.w500,
+                                                        fontSize:
+                                                            AppTypography.font(
+                                                                AppFontSizes
+                                                                    .bodySmall),
+                                                        fontWeight:
+                                                            FontWeight.w500,
                                                         color: mutedTextColor,
                                                       ),
                                                     ),
@@ -502,8 +578,11 @@ class _OrderRequestDetailScreenState
                                                     Text(
                                                       '25 - 30 mins',
                                                       style: TextStyle(
-                                                        fontSize: AppTypography.font(AppFontSizes.bodyMedium),
-                                                        fontWeight: FontWeight.w700,
+                                                        fontSize: AppTypography
+                                                            .font(AppFontSizes
+                                                                .bodyMedium),
+                                                        fontWeight:
+                                                            FontWeight.w700,
                                                         color: purpleColor,
                                                       ),
                                                     ),
@@ -513,30 +592,42 @@ class _OrderRequestDetailScreenState
                                             ],
                                           ),
                                         ),
-                                        Container(width: 1, height: 32, color: borderColor),
+                                        Container(
+                                            width: 1,
+                                            height: 32,
+                                            color: borderColor),
                                         const SizedBox(width: 12),
                                         // Total Distance
                                         Expanded(
                                           child: Row(
                                             children: [
                                               Container(
-                                                padding: const EdgeInsets.all(8),
+                                                padding:
+                                                    const EdgeInsets.all(8),
                                                 decoration: BoxDecoration(
-                                                  color: purpleColor.withValues(alpha: 0.12),
+                                                  color: purpleColor.withValues(
+                                                      alpha: 0.12),
                                                   shape: BoxShape.circle,
                                                 ),
-                                                child: Icon(LucideIcons.mapPin, size: 16, color: purpleColor),
+                                                child: Icon(LucideIcons.mapPin,
+                                                    size: 16,
+                                                    color: purpleColor),
                                               ),
                                               const SizedBox(width: 10),
                                               Expanded(
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
                                                       'Total Distance',
                                                       style: TextStyle(
-                                                        fontSize: AppTypography.font(AppFontSizes.bodySmall),
-                                                        fontWeight: FontWeight.w500,
+                                                        fontSize:
+                                                            AppTypography.font(
+                                                                AppFontSizes
+                                                                    .bodySmall),
+                                                        fontWeight:
+                                                            FontWeight.w500,
                                                         color: mutedTextColor,
                                                       ),
                                                     ),
@@ -544,8 +635,11 @@ class _OrderRequestDetailScreenState
                                                     Text(
                                                       '${distanceKm.toStringAsFixed(1)} km',
                                                       style: TextStyle(
-                                                        fontSize: AppTypography.font(AppFontSizes.bodyMedium),
-                                                        fontWeight: FontWeight.w700,
+                                                        fontSize: AppTypography
+                                                            .font(AppFontSizes
+                                                                .bodyMedium),
+                                                        fontWeight:
+                                                            FontWeight.w700,
                                                         color: purpleColor,
                                                       ),
                                                     ),
@@ -570,32 +664,41 @@ class _OrderRequestDetailScreenState
                               decoration: BoxDecoration(
                                 color: cardBg,
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: borderColor, width: 1),
+                                border:
+                                    Border.all(color: borderColor, width: 1),
                               ),
                               child: Column(
                                 children: [
                                   // Pick Up Row
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
-                                          color: purpleColor.withValues(alpha: 0.08),
+                                          color: purpleColor.withValues(
+                                              alpha: 0.08),
                                           shape: BoxShape.circle,
-                                          border: Border.all(color: purpleColor.withValues(alpha: 0.2), width: 1),
+                                          border: Border.all(
+                                              color: purpleColor.withValues(
+                                                  alpha: 0.2),
+                                              width: 1),
                                         ),
-                                        child: Icon(LucideIcons.store, size: 18, color: purpleColor),
+                                        child: Icon(LucideIcons.store,
+                                            size: 18, color: purpleColor),
                                       ),
                                       const SizedBox(width: 14),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               'Pick Up',
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                                fontSize: AppTypography.font(
+                                                    AppFontSizes.bodySmall),
                                                 fontWeight: FontWeight.w600,
                                                 color: purpleColor,
                                               ),
@@ -604,7 +707,8 @@ class _OrderRequestDetailScreenState
                                             Text(
                                               restaurantName,
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(15),
+                                                fontSize:
+                                                    AppTypography.font(15),
                                                 fontWeight: FontWeight.w700,
                                                 color: primaryTextColor,
                                               ),
@@ -613,7 +717,8 @@ class _OrderRequestDetailScreenState
                                             VendorAddressText(
                                               data: data,
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                                fontSize: AppTypography.font(
+                                                    AppFontSizes.bodySmall),
                                                 fontWeight: FontWeight.w500,
                                                 color: mutedTextColor,
                                               ),
@@ -626,39 +731,50 @@ class _OrderRequestDetailScreenState
 
                                   // Connector
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 19, top: 4, bottom: 4),
+                                    padding: const EdgeInsets.only(
+                                        left: 19, top: 4, bottom: 4),
                                     child: Align(
                                       alignment: Alignment.centerLeft,
                                       child: Container(
                                         width: 1.5,
                                         height: 28,
-                                        color: isDark ? AppTheme.darkBorder : const Color(0xFFD8B4FE),
+                                        color: isDark
+                                            ? AppTheme.darkBorder
+                                            : const Color(0xFFD8B4FE),
                                       ),
                                     ),
                                   ),
 
                                   // Drop Off Row
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
-                                          color: purpleColor.withValues(alpha: 0.08),
+                                          color: purpleColor.withValues(
+                                              alpha: 0.08),
                                           shape: BoxShape.circle,
-                                          border: Border.all(color: purpleColor.withValues(alpha: 0.2), width: 1),
+                                          border: Border.all(
+                                              color: purpleColor.withValues(
+                                                  alpha: 0.2),
+                                              width: 1),
                                         ),
-                                        child: Icon(LucideIcons.mapPin, size: 18, color: purpleColor),
+                                        child: Icon(LucideIcons.mapPin,
+                                            size: 18, color: purpleColor),
                                       ),
                                       const SizedBox(width: 14),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               'Drop Off',
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                                fontSize: AppTypography.font(
+                                                    AppFontSizes.bodySmall),
                                                 fontWeight: FontWeight.w600,
                                                 color: purpleColor,
                                               ),
@@ -667,7 +783,8 @@ class _OrderRequestDetailScreenState
                                             Text(
                                               customerName,
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(15),
+                                                fontSize:
+                                                    AppTypography.font(15),
                                                 fontWeight: FontWeight.w700,
                                                 color: primaryTextColor,
                                               ),
@@ -676,7 +793,8 @@ class _OrderRequestDetailScreenState
                                             Text(
                                               customerAddress,
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(AppFontSizes.bodySmall),
+                                                fontSize: AppTypography.font(
+                                                    AppFontSizes.bodySmall),
                                                 fontWeight: FontWeight.w500,
                                                 color: mutedTextColor,
                                               ),
@@ -691,7 +809,8 @@ class _OrderRequestDetailScreenState
                                             icon: LucideIcons.phone,
                                             purpleColor: purpleColor,
                                             borderColor: borderColor,
-                                            onTap: () => _callPhone(customerPhone),
+                                            onTap: () =>
+                                                _callPhone(customerPhone),
                                           ),
                                           const SizedBox(width: 8),
                                           _buildCircleAction(
@@ -699,10 +818,13 @@ class _OrderRequestDetailScreenState
                                             purpleColor: purpleColor,
                                             borderColor: borderColor,
                                             onTap: () {
-                                              context.push('/conversation', extra: {
-                                                'id': data['customerId'] ?? data['userId'] ?? '',
-                                                'name': customerName,
-                                              });
+                                              context.push('/conversation',
+                                                  extra: {
+                                                    'id': data['customerId'] ??
+                                                        data['userId'] ??
+                                                        '',
+                                                    'name': customerName,
+                                                  });
                                             },
                                           ),
                                         ],
@@ -721,13 +843,15 @@ class _OrderRequestDetailScreenState
                               decoration: BoxDecoration(
                                 color: cardBg,
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: borderColor, width: 1),
+                                border:
+                                    Border.all(color: borderColor, width: 1),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         'Order items',
@@ -751,43 +875,77 @@ class _OrderRequestDetailScreenState
                                   // Items List
                                   if (items.isEmpty)
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 8),
                                       child: Text(
                                         'Prepared dishes for delivery',
-                                        style: TextStyle(color: mutedTextColor, fontSize: AppTypography.font(13)),
+                                        style: TextStyle(
+                                            color: mutedTextColor,
+                                            fontSize: AppTypography.font(13)),
                                       ),
                                     )
                                   else
                                     ...items.map((item) {
-                                      final iMap = item is Map<String, dynamic> ? item : <String, dynamic>{};
-                                      final name = (iMap['name'] ?? iMap['title'] ?? 'Food Item').toString();
-                                      final quantity = (iMap['quantity'] ?? iMap['qty'] ?? 1).toString();
-                                      final price = (iMap['price'] as num?)?.toDouble() ?? 0.0;
-                                      final imgUrl = (iMap['imageUrl'] ?? iMap['image'] ?? '').toString();
+                                      final iMap = item is Map<String, dynamic>
+                                          ? item
+                                          : <String, dynamic>{};
+                                      final name = (iMap['name'] ??
+                                              iMap['title'] ??
+                                              'Food Item')
+                                          .toString();
+                                      final quantity =
+                                          (iMap['quantity'] ?? iMap['qty'] ?? 1)
+                                              .toString();
+                                      final price =
+                                          (iMap['price'] as num?)?.toDouble() ??
+                                              0.0;
+                                      final imgUrl = (iMap['imageUrl'] ??
+                                              iMap['image'] ??
+                                              '')
+                                          .toString();
 
                                       return Padding(
-                                        padding: const EdgeInsets.only(bottom: 12),
+                                        padding:
+                                            const EdgeInsets.only(bottom: 12),
                                         child: Row(
                                           children: [
                                             ClipRRect(
-                                              borderRadius: BorderRadius.circular(12),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
                                               child: Container(
                                                 width: 48,
                                                 height: 48,
-                                                color: purpleColor.withValues(alpha: 0.08),
+                                                color: purpleColor.withValues(
+                                                    alpha: 0.08),
                                                 child: imgUrl.isNotEmpty
                                                     ? CachedNetworkImage(
                                                         imageUrl: imgUrl,
                                                         fit: BoxFit.cover,
-                                                        placeholder: (c, u) => Center(
-                                                          child: Icon(LucideIcons.utensils, size: 20, color: purpleColor),
+                                                        placeholder: (c, u) =>
+                                                            Center(
+                                                          child: Icon(
+                                                              LucideIcons
+                                                                  .utensils,
+                                                              size: 20,
+                                                              color:
+                                                                  purpleColor),
                                                         ),
-                                                        errorWidget: (c, u, e) => Center(
-                                                          child: Icon(LucideIcons.utensils, size: 20, color: purpleColor),
+                                                        errorWidget:
+                                                            (c, u, e) => Center(
+                                                          child: Icon(
+                                                              LucideIcons
+                                                                  .utensils,
+                                                              size: 20,
+                                                              color:
+                                                                  purpleColor),
                                                         ),
                                                       )
                                                     : Center(
-                                                        child: Icon(LucideIcons.utensils, size: 20, color: purpleColor),
+                                                        child: Icon(
+                                                            LucideIcons
+                                                                .utensils,
+                                                            size: 20,
+                                                            color: purpleColor),
                                                       ),
                                               ),
                                             ),
@@ -796,7 +954,8 @@ class _OrderRequestDetailScreenState
                                               child: Text(
                                                 '$name x $quantity',
                                                 style: TextStyle(
-                                                  fontSize: AppTypography.font(14),
+                                                  fontSize:
+                                                      AppTypography.font(14),
                                                   fontWeight: FontWeight.w700,
                                                   color: primaryTextColor,
                                                 ),
@@ -805,7 +964,8 @@ class _OrderRequestDetailScreenState
                                             Text(
                                               '₦${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                                               style: TextStyle(
-                                                fontSize: AppTypography.font(14),
+                                                fontSize:
+                                                    AppTypography.font(14),
                                                 fontWeight: FontWeight.w800,
                                                 color: primaryTextColor,
                                               ),
@@ -820,13 +980,17 @@ class _OrderRequestDetailScreenState
                                   // Subtotal Banner Pill Box
                                   Container(
                                     width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                     decoration: BoxDecoration(
-                                      color: isDark ? purpleColor.withValues(alpha: 0.15) : const Color(0xFFF3E8FF),
+                                      color: isDark
+                                          ? purpleColor.withValues(alpha: 0.15)
+                                          : const Color(0xFFF3E8FF),
                                       borderRadius: BorderRadius.circular(14),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           'Sub-total',
@@ -856,21 +1020,25 @@ class _OrderRequestDetailScreenState
                             if (customerNote.isNotEmpty)
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 14),
                                 decoration: BoxDecoration(
                                   color: cardBg,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: borderColor, width: 1),
+                                  border:
+                                      Border.all(color: borderColor, width: 1),
                                 ),
                                 child: Row(
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: purpleColor.withValues(alpha: 0.08),
+                                        color:
+                                            purpleColor.withValues(alpha: 0.08),
                                         shape: BoxShape.circle,
                                       ),
-                                      child: Icon(LucideIcons.notepadText, size: 16, color: purpleColor),
+                                      child: Icon(LucideIcons.notepadText,
+                                          size: 16, color: purpleColor),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -895,10 +1063,12 @@ class _OrderRequestDetailScreenState
 
                     // ── Bottom Action Controls ──────────────────────────────
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14),
                       decoration: BoxDecoration(
                         color: cardBg,
-                        border: Border(top: BorderSide(color: borderColor, width: 1)),
+                        border: Border(
+                            top: BorderSide(color: borderColor, width: 1)),
                       ),
                       child: isClaimedByOther
                           ? Column(
@@ -906,12 +1076,17 @@ class _OrderRequestDetailScreenState
                               children: [
                                 Container(
                                   width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
+                                    color: isDark
+                                        ? const Color(0xFF450A0A)
+                                        : const Color(0xFFFEF2F2),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFECACA),
+                                      color: isDark
+                                          ? const Color(0xFF7F1D1D)
+                                          : const Color(0xFFFECACA),
                                       width: 1,
                                     ),
                                   ),
@@ -920,7 +1095,9 @@ class _OrderRequestDetailScreenState
                                       Icon(
                                         LucideIcons.circleAlert,
                                         size: 16,
-                                        color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
+                                        color: isDark
+                                            ? const Color(0xFFFCA5A5)
+                                            : const Color(0xFFDC2626),
                                       ),
                                       const SizedBox(width: 8),
                                       Expanded(
@@ -929,7 +1106,9 @@ class _OrderRequestDetailScreenState
                                           style: TextStyle(
                                             fontSize: AppTypography.font(12),
                                             fontWeight: FontWeight.w600,
-                                            color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
+                                            color: isDark
+                                                ? const Color(0xFFFCA5A5)
+                                                : const Color(0xFFDC2626),
                                           ),
                                         ),
                                       ),
@@ -970,8 +1149,7 @@ class _OrderRequestDetailScreenState
                                     ref.watch(riderAvailabilityProvider);
                                 final exceedsRadius =
                                     broadcastStatus.exceedsRadius;
-                                final cannotAccept =
-                                    !isOnline || exceedsRadius;
+                                final cannotAccept = !isOnline || exceedsRadius;
                                 final disabledBg = isDark
                                     ? AppTheme.darkBorder
                                     : AppTheme.lightInputFill;

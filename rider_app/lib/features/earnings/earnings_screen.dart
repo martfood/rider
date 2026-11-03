@@ -398,7 +398,7 @@ class EarningsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'â‚¦${_formatCurrency(balance)}',
+                  '₦${_formatCurrency(balance)}',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: AppTypography.font(32),

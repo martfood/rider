@@ -962,7 +962,7 @@ class _OrderRequestDetailScreenState
                                               ),
                                             ),
                                             Text(
-                                              'â‚¦${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                                              '₦${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                                               style: TextStyle(
                                                 fontSize:
                                                     AppTypography.font(14),
@@ -1001,7 +1001,7 @@ class _OrderRequestDetailScreenState
                                           ),
                                         ),
                                         Text(
-                                          'â‚¦${totalAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                                          '₦${totalAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                                           style: TextStyle(
                                             fontSize: AppTypography.font(15),
                                             fontWeight: FontWeight.w800,

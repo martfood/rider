@@ -1130,7 +1130,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       case OrderStage.awaitingDeliveryCode:
         return 'Confirm Delivery';
       case OrderStage.delivered:
-        return 'Delivered âœ“';
+        return 'Delivered ✓';
     }
   }
 
@@ -2051,7 +2051,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                         ),
                                       ),
                                       Text(
-                                        'â‚¦${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                                        '₦${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                                         style: TextStyle(
                                           fontSize: AppTypography.font(14),
                                           fontWeight: FontWeight.w700,
@@ -2124,7 +2124,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     ),
                                   ),
                                   Text(
-                                    'â‚¦${totalAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                                    '₦${totalAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
                                     style: TextStyle(
                                       fontSize: AppTypography.font(15),
                                       fontWeight: FontWeight.w800,
@@ -2382,12 +2382,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                           border: Border.all(
                             color: _pinErrorMessage != null
                                 ? const Color(0xFFEF4444)
-                                : (isDark
-                                    ? Colors.white
-                                    : (isFilled
-                                        ? purpleColor.withValues(alpha: 0.5)
-                                        : const Color(0xFFE2E8F0))),
-                            width: isCurrentFocus ? 1.5 : 1,
+                                : (isDark ? Colors.white : AppTheme.brandBlack),
+                            width: isDark ? (isCurrentFocus ? 1.5 : 1) : 3,
                           ),
                         ),
                         child: Center(

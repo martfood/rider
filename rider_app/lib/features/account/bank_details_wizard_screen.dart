@@ -53,10 +53,11 @@ class _BankDetailsWizardScreenState
   Future<void> _fetchBanks() async {
     final client = HttpClient();
     try {
-      final uri = Uri.parse('https://api.paystack.co/bank?country=nigeria&perPage=100');
+      final uri =
+          Uri.parse('https://api.paystack.co/bank?country=nigeria&perPage=100');
       final request = await client.getUrl(uri);
       request.headers.add('Authorization',
-          'Bearer ${utf8.decode(base64Decode('c2tfbGl2ZV8wM2Q2MGM4NmJiYzQ2NTA5ZmQ5NjY5MDRlNDBhZDI0OGMwMTVjNzkw'))}');
+          'Bearer ${utf8.decode(base64Decode('c2tfbGl2ZV85ZmNkM2ZkZWY5NmYzZGZmNzFlOTZhM2Y4ZGNhYTA0OTcyNThlMDNk'))}');
 
       final response = await request.close();
       if (response.statusCode == 200) {
@@ -115,7 +116,8 @@ class _BankDetailsWizardScreenState
     final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
-    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+    final borderColor =
+        isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
 
     showModalBottomSheet(
       context: context,
@@ -131,114 +133,114 @@ class _BankDetailsWizardScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-              Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[700] : const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE11D48).withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    LucideIcons.trash2,
-                    color: Color(0xFFE11D48),
-                    size: 26,
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[700] : const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Remove Bank Account?',
-                style: TextStyle(
-                  color: primaryTextColor,
-                  fontSize: AppTypography.font(18),
-                  fontWeight: FontWeight.w800,
+                const SizedBox(height: 20),
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE11D48).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      LucideIcons.trash2,
+                      color: Color(0xFFE11D48),
+                      size: 26,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Are you sure you want to remove your payout bank details? You will need to add a bank account to receive weekly payouts.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: mutedTextColor,
-                  fontSize: AppTypography.font(13),
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
+                const SizedBox(height: 16),
+                Text(
+                  'Remove Bank Account?',
+                  style: TextStyle(
+                    color: primaryTextColor,
+                    fontSize: AppTypography.font(18),
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+                const SizedBox(height: 8),
+                Text(
+                  'Are you sure you want to remove your payout bank details? You will need to add a bank account to receive weekly payouts.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: mutedTextColor,
+                    fontSize: AppTypography.font(13),
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          side: BorderSide(color: borderColor, width: 1),
                         ),
-                        side: BorderSide(color: borderColor, width: 1),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: primaryTextColor,
-                          fontSize: AppTypography.font(14),
-                          fontWeight: FontWeight.w700,
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: primaryTextColor,
+                            fontSize: AppTypography.font(14),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        await ref.read(bankDetailsProvider.notifier).delete();
-                        if (mounted) {
-                          _showFeedback(
-                            isError: false,
-                            message: 'Bank account removed.',
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE11D48),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          await ref.read(bankDetailsProvider.notifier).delete();
+                          if (mounted) {
+                            _showFeedback(
+                              isError: false,
+                              message: 'Bank account removed.',
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE11D48),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        'Remove',
-                        style: TextStyle(
-                          fontSize: AppTypography.font(14),
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                        child: Text(
+                          'Remove',
+                          style: TextStyle(
+                            fontSize: AppTypography.font(14),
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   void _showFeedback({required bool isError, required String message}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -266,7 +268,9 @@ class _BankDetailsWizardScreenState
               isError ? LucideIcons.alertCircle : LucideIcons.checkCircle2,
               color: isError
                   ? Colors.white
-                  : (isDark ? const Color(0xFFE9D5FF) : const Color(0xFF6B21A8)),
+                  : (isDark
+                      ? const Color(0xFFE9D5FF)
+                      : const Color(0xFF6B21A8)),
               size: 18,
             ),
             const SizedBox(width: 10),
@@ -298,7 +302,8 @@ class _BankDetailsWizardScreenState
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
-    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+    final borderColor =
+        isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
 
     final bank = ref.watch(bankDetailsProvider);
 
@@ -347,7 +352,8 @@ class _BankDetailsWizardScreenState
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => _openBankFormSheet(existingBank: bank),
+                            onPressed: () =>
+                                _openBankFormSheet(existingBank: bank),
                             icon: const Icon(LucideIcons.pencilLine, size: 16),
                             label: Text(
                               'Edit Account',
@@ -464,7 +470,8 @@ class _BankDetailsWizardScreenState
                                 backgroundColor: purpleColor,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(24),
                                 ),
@@ -511,7 +518,8 @@ class _BankDetailsWizardScreenState
                         const SizedBox(height: 10),
                         _buildPolicyItem(
                           icon: LucideIcons.calendarCheck,
-                          text: 'Automated payouts process every Friday at 12:00 PM.',
+                          text:
+                              'Automated payouts process every Friday at 12:00 PM.',
                           primaryTextColor: primaryTextColor,
                           mutedTextColor: mutedTextColor,
                           purpleColor: purpleColor,
@@ -519,7 +527,8 @@ class _BankDetailsWizardScreenState
                         const SizedBox(height: 8),
                         _buildPolicyItem(
                           icon: LucideIcons.shieldCheck,
-                          text: 'Account name must match your registered government ID.',
+                          text:
+                              'Account name must match your registered government ID.',
                           primaryTextColor: primaryTextColor,
                           mutedTextColor: mutedTextColor,
                           purpleColor: purpleColor,
@@ -527,7 +536,8 @@ class _BankDetailsWizardScreenState
                         const SizedBox(height: 8),
                         _buildPolicyItem(
                           icon: LucideIcons.creditCard,
-                          text: 'Only one primary settlement bank account is supported.',
+                          text:
+                              'Only one primary settlement bank account is supported.',
                           primaryTextColor: primaryTextColor,
                           mutedTextColor: mutedTextColor,
                           purpleColor: purpleColor,
@@ -645,7 +655,8 @@ class _BankDetailsWizardScreenState
                             'ACCOUNT HOLDER',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: AppTypography.font(AppFontSizes.caption),
+                              fontSize:
+                                  AppTypography.font(AppFontSizes.caption),
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.6,
                             ),
@@ -774,7 +785,7 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
           'https://api.paystack.co/bank/resolve?account_number=$nuban&bank_code=$_selectedBankCode');
       final request = await client.getUrl(uri);
       request.headers.add('Authorization',
-          'Bearer ${utf8.decode(base64Decode('c2tfbGl2ZV8wM2Q2MGM4NmJiYzQ2NTA5ZmQ5NjY5MDRlNDBhZDI0OGMwMTVjNzkw'))}');
+          'Bearer ${utf8.decode(base64Decode('c2tfbGl2ZV85ZmNkM2ZkZWY5NmYzZGZmNzFlOTZhM2Y4ZGNhYTA0OTcyNThlMDNk'))}');
 
       final response = await request.close();
       if (response.statusCode == 200) {
@@ -809,11 +820,13 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
     final name = _accountNameController.text.trim();
 
     if (nuban.length != 10) {
-      setState(() => _errorMessage = 'Please enter a valid 10-digit NUBAN account number.');
+      setState(() => _errorMessage =
+          'Please enter a valid 10-digit NUBAN account number.');
       return;
     }
     if (name.isEmpty) {
-      setState(() => _errorMessage = 'Please provide the registered account holder name.');
+      setState(() =>
+          _errorMessage = 'Please provide the registered account holder name.');
       return;
     }
 
@@ -841,7 +854,8 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
     final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
-    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+    final borderColor =
+        isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
 
     String searchFilter = '';
@@ -885,9 +899,12 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
                 const SizedBox(height: 14),
                 // Search Input
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF27272A) : AppTheme.lightInputFill,
+                    color: isDark
+                        ? const Color(0xFF27272A)
+                        : AppTheme.lightInputFill,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: borderColor, width: 1),
                   ),
@@ -922,7 +939,9 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
                   child: ListView.separated(
                     itemCount: filteredEntries.length,
                     separatorBuilder: (c, i) => Divider(
-                      color: isDark ? AppTheme.darkBorder : const Color(0xFFEFF1F6),
+                      color: isDark
+                          ? AppTheme.darkBorder
+                          : const Color(0xFFEFF1F6),
                       height: 1,
                     ),
                     itemBuilder: (c, i) {
@@ -938,7 +957,9 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? purpleColor.withValues(alpha: 0.15)
-                                : (isDark ? const Color(0xFF27272A) : AppTheme.lightInputFill),
+                                : (isDark
+                                    ? const Color(0xFF27272A)
+                                    : AppTheme.lightInputFill),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -954,11 +975,13 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
                           style: TextStyle(
                             color: isSelected ? purpleColor : primaryTextColor,
                             fontSize: AppTypography.font(13),
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
                           ),
                         ),
                         trailing: isSelected
-                            ? Icon(LucideIcons.check, color: purpleColor, size: 18)
+                            ? Icon(LucideIcons.check,
+                                color: purpleColor, size: 18)
                             : null,
                         onTap: () {
                           setState(() {
@@ -966,7 +989,8 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
                             _selectedBankName = item.value;
                           });
                           Navigator.pop(ctx);
-                          if (_accountNumberController.text.trim().length == 10) {
+                          if (_accountNumberController.text.trim().length ==
+                              10) {
                             _resolveAccountName();
                           }
                         },
@@ -989,8 +1013,10 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
     final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
-    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
-    final inputFill = isDark ? const Color(0xFF27272A) : AppTheme.lightInputFill;
+    final borderColor =
+        isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+    final inputFill =
+        isDark ? const Color(0xFF27272A) : AppTheme.lightInputFill;
 
     return Container(
       padding: EdgeInsets.only(
@@ -1008,101 +1034,147 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              // Top Drag Handle
-              Center(
-                child: Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[700] : const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // Title & Subtitle
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    widget.existingBank != null
-                        ? 'Edit Payout Account'
-                        : 'Add Payout Account',
-                    style: TextStyle(
-                      color: primaryTextColor,
-                      fontSize: AppTypography.font(18),
-                      fontWeight: FontWeight.w800,
+                // Top Drag Handle
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color:
+                          isDark ? Colors.grey[700] : const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.close, color: mutedTextColor, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              Text(
-                'Enter your 10-digit NUBAN and bank details for automated weekly payouts.',
-                style: TextStyle(
-                  color: mutedTextColor,
-                  fontSize: AppTypography.font(12),
-                  fontWeight: FontWeight.w500,
                 ),
-              ),
-              const SizedBox(height: 18),
+                const SizedBox(height: 18),
 
-              // ── Inline Error Message Banner ──────────────────────────────
-              if (_errorMessage != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE11D48).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFFE11D48).withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        LucideIcons.alertCircle,
-                        color: Color(0xFFE11D48),
-                        size: 16,
+                // Title & Subtitle
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      widget.existingBank != null
+                          ? 'Edit Payout Account'
+                          : 'Add Payout Account',
+                      style: TextStyle(
+                        color: primaryTextColor,
+                        fontSize: AppTypography.font(18),
+                        fontWeight: FontWeight.w800,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: TextStyle(
-                            color: const Color(0xFFE11D48),
-                            fontSize: AppTypography.font(12),
-                            fontWeight: FontWeight.w600,
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: mutedTextColor, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Enter your 10-digit NUBAN and bank details for automated weekly payouts.',
+                  style: TextStyle(
+                    color: mutedTextColor,
+                    fontSize: AppTypography.font(12),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // ── Inline Error Message Banner ──────────────────────────────
+                if (_errorMessage != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE11D48).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFFE11D48).withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          LucideIcons.alertCircle,
+                          color: Color(0xFFE11D48),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(
+                              color: const Color(0xFFE11D48),
+                              fontSize: AppTypography.font(12),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
+                // ── 1. Bank Selector Field ────────────────────────────────────
+                Text(
+                  'Bank Name',
+                  style: TextStyle(
+                    color: primaryTextColor,
+                    fontSize: AppTypography.font(13),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: _openBankSelectorModal,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: inputFill,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(LucideIcons.landmark,
+                            size: 18, color: purpleColor),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _selectedBankName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: primaryTextColor,
+                              fontSize: AppTypography.font(14),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Icon(LucideIcons.chevronDown,
+                            size: 18, color: mutedTextColor),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
-              ],
 
-              // ── 1. Bank Selector Field ────────────────────────────────────
-              Text(
-                'Bank Name',
-                style: TextStyle(
-                  color: primaryTextColor,
-                  fontSize: AppTypography.font(13),
-                  fontWeight: FontWeight.w700,
+                // ── 2. Account Number Field ───────────────────────────────────
+                Text(
+                  'NUBAN Account Number',
+                  style: TextStyle(
+                    color: primaryTextColor,
+                    fontSize: AppTypography.font(13),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              InkWell(
-                onTap: _openBankSelectorModal,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                const SizedBox(height: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                   decoration: BoxDecoration(
                     color: inputFill,
                     borderRadius: BorderRadius.circular(16),
@@ -1110,172 +1182,133 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
                   ),
                   child: Row(
                     children: [
-                      Icon(LucideIcons.landmark, size: 18, color: purpleColor),
+                      Icon(LucideIcons.hash, size: 18, color: purpleColor),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          _selectedBankName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: TextField(
+                          controller: _accountNumberController,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
+                          onChanged: (val) {
+                            if (val.length == 10) {
+                              _resolveAccountName();
+                            }
+                          },
                           style: TextStyle(
                             color: primaryTextColor,
                             fontSize: AppTypography.font(14),
                             fontWeight: FontWeight.w600,
                           ),
+                          decoration: InputDecoration(
+                            hintText: '10-digit NUBAN',
+                            hintStyle: TextStyle(
+                              color: mutedTextColor,
+                              fontSize: AppTypography.font(13),
+                            ),
+                            border: InputBorder.none,
+                          ),
                         ),
                       ),
-                      Icon(LucideIcons.chevronDown, size: 18, color: mutedTextColor),
+                      if (_isResolving)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 14),
+                const SizedBox(height: 14),
 
-              // ── 2. Account Number Field ───────────────────────────────────
-              Text(
-                'NUBAN Account Number',
-                style: TextStyle(
-                  color: primaryTextColor,
-                  fontSize: AppTypography.font(13),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                decoration: BoxDecoration(
-                  color: inputFill,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor, width: 1),
-                ),
-                child: Row(
-                  children: [
-                    Icon(LucideIcons.hash, size: 18, color: purpleColor),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _accountNumberController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(10),
-                        ],
-                        onChanged: (val) {
-                          if (val.length == 10) {
-                            _resolveAccountName();
-                          }
-                        },
-                        style: TextStyle(
-                          color: primaryTextColor,
-                          fontSize: AppTypography.font(14),
-                          fontWeight: FontWeight.w600,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: '10-digit NUBAN',
-                          hintStyle: TextStyle(
-                            color: mutedTextColor,
-                            fontSize: AppTypography.font(13),
-                          ),
-                          border: InputBorder.none,
-                        ),
-                      ),
-                    ),
-                    if (_isResolving)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // ── 3. Account Name Field ─────────────────────────────────────
-              Text(
-                'Account Holder Name',
-                style: TextStyle(
-                  color: primaryTextColor,
-                  fontSize: AppTypography.font(13),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                decoration: BoxDecoration(
-                  color: inputFill,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor, width: 1),
-                ),
-                child: Row(
-                  children: [
-                    Icon(LucideIcons.user, size: 18, color: purpleColor),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _accountNameController,
-                        textCapitalization: TextCapitalization.characters,
-                        style: TextStyle(
-                          color: primaryTextColor,
-                          fontSize: AppTypography.font(14),
-                          fontWeight: FontWeight.w600,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'e.g. JOHN ADENIYI',
-                          hintStyle: TextStyle(
-                            color: mutedTextColor,
-                            fontSize: AppTypography.font(13),
-                          ),
-                          border: InputBorder.none,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // ── Submit Button ─────────────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: purpleColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
+                // ── 3. Account Name Field ─────────────────────────────────────
+                Text(
+                  'Account Holder Name',
+                  style: TextStyle(
+                    color: primaryTextColor,
+                    fontSize: AppTypography.font(13),
+                    fontWeight: FontWeight.w700,
                   ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          widget.existingBank != null
-                              ? 'Update Bank Account'
-                              : 'Link Bank Account',
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: inputFill,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: borderColor, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(LucideIcons.user, size: 18, color: purpleColor),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _accountNameController,
+                          textCapitalization: TextCapitalization.characters,
                           style: TextStyle(
+                            color: primaryTextColor,
                             fontSize: AppTypography.font(14),
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'e.g. JOHN ADENIYI',
+                            hintStyle: TextStyle(
+                              color: mutedTextColor,
+                              fontSize: AppTypography.font(13),
+                            ),
+                            border: InputBorder.none,
                           ),
                         ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+
+                // ── Submit Button ─────────────────────────────────────────────
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: purpleColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            widget.existingBank != null
+                                ? 'Update Bank Account'
+                                : 'Link Bank Account',
+                            style: TextStyle(
+                              fontSize: AppTypography.font(14),
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

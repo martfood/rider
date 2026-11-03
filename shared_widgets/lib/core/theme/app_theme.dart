@@ -39,6 +39,8 @@ class AppTheme {
   static const Color lightInputFill = Color(0xFFF3F3F5);
   static const Color lightInputBorder = Color(0xFFE5E5EA);
   static const Color lightPurpleBorder = Color(0xFFE9D5FF);
+  /// Brand black (#121212) used for bold light-mode outlines.
+  static const Color brandBlack = Color(0xFF121212);
   static const Color onboardingBackground = Color(0xFFE4E1DA);
 
   // High contrast text tokens (Eliminates faint/dull 20% opacity look in light mode)
@@ -89,17 +91,18 @@ class AppTheme {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: const Color(0xFFF3E8FF), // Branded light purple bg
+      backgroundColor: lightInputFill, // App grey
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE9D5FF), width: 1.5),
+        side: const BorderSide(color: lightInputBorder, width: 1.0),
       ),
       contentTextStyle: const TextStyle(
-        color: Color(0xFF6B21A8), // Deep purple text
-        fontWeight: FontWeight.bold,
-        fontSize: 13.5,
+        color: Colors.black, // Font black
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
       ),
+      actionTextColor: primaryPurple,
     ),
   );
 
@@ -130,18 +133,18 @@ class AppTheme {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: const Color(0xFF1E152A), // Branded dark purple bg
+      backgroundColor: Colors.white, // App white
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side:
-            BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.5),
+        side: const BorderSide(color: lightInputBorder, width: 1.0),
       ),
       contentTextStyle: const TextStyle(
-        color: Color(0xFFE9D5FF), // Light purple text
-        fontWeight: FontWeight.bold,
-        fontSize: 13.5,
+        color: Colors.black, // Font black
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
       ),
+      actionTextColor: primaryPurple,
     ),
   );
 

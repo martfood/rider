@@ -8,10 +8,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
 
 import '../../domain/bank_details.dart';
+import '../../domain/bank_request.dart';
 import '../../providers/rider_app_providers.dart';
+import '../../providers/rider_profile_provider.dart';
 
 /// Bank & Payout Details screen matching the Minimal & Flat design system
-/// of e-wallet_screen.dart with one primary card and bottom sheet modal editors.
+/// with active vs pending review states, administrative approval workflows,
+/// and bottom sheet editors.
 class BankDetailsWizardScreen extends ConsumerStatefulWidget {
   const BankDetailsWizardScreen({super.key});
 
@@ -96,17 +99,549 @@ class _BankDetailsWizardScreenState
       builder: (ctx) => _PayoutAccountBottomSheet(
         existingBank: existingBank,
         banks: _banks,
-        onSaved: (bank) async {
-          await ref.read(bankDetailsProvider.notifier).save(bank);
-          if (mounted) {
-            _showFeedback(
-              isError: false,
-              message: existingBank != null
-                  ? 'Bank details updated successfully.'
-                  : 'Payout bank account linked successfully.',
-            );
-          }
+        onProceedToConfirm: (bank) {
+          _confirmAndSubmitBankRequest(
+            requestedBank: bank,
+            currentBank: existingBank,
+          );
         },
+      ),
+    );
+  }
+
+  void _confirmAndSubmitBankRequest({
+    required BankDetails requestedBank,
+    BankDetails? currentBank,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
+    final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
+    final purpleColor = AppTheme.primaryPurpleFor(isDark);
+    final borderColor =
+        isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: surfaceColor,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) {
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color:
+                            isDark ? Colors.grey[700] : const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: purpleColor.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(LucideIcons.shieldCheck,
+                              color: purpleColor, size: 20),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Submit for Admin Approval',
+                              style: TextStyle(
+                                color: primaryTextColor,
+                                fontSize: AppTypography.font(16),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              'Settlement Account Verification',
+                              style: TextStyle(
+                                color: mutedTextColor,
+                                fontSize: AppTypography.font(12),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Requested Details Box
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF27272A)
+                          : AppTheme.lightInputFill,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: borderColor, width: 1),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'REQUESTED BANK DETAILS',
+                          style: TextStyle(
+                            color: purpleColor,
+                            fontSize: AppTypography.font(11),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          requestedBank.bankName,
+                          style: TextStyle(
+                            color: primaryTextColor,
+                            fontSize: AppTypography.font(15),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          requestedBank.accountNumber,
+                          style: TextStyle(
+                            color: primaryTextColor,
+                            fontSize: AppTypography.font(14),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          requestedBank.accountName,
+                          style: TextStyle(
+                            color: mutedTextColor,
+                            fontSize: AppTypography.font(12),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Informational notice
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF1E152A)
+                          : const Color(0xFFFAF5FF),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF3B1D54)
+                            : const Color(0xFFF3E8FF),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(LucideIcons.info, size: 16, color: purpleColor),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Your requested details will be sent to the administration team for audit. Your active account (if any) remains active until approved.',
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.purple[200]
+                                  : const Color(0xFF581C87),
+                              fontSize: AppTypography.font(12),
+                              fontWeight: FontWeight.w500,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+
+                  // Actions
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () => Navigator.pop(sheetCtx),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            side: BorderSide(color: borderColor, width: 1),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: primaryTextColor,
+                              fontSize: AppTypography.font(14),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  setSheetState(() => isSubmitting = true);
+                                  try {
+                                    final profile =
+                                        ref.read(riderProfileProvider);
+                                    await ref
+                                        .read(bankDetailsProvider.notifier)
+                                        .submitUpdateRequest(
+                                          requestedBank: requestedBank,
+                                          currentBank: currentBank,
+                                          profile: profile,
+                                        );
+
+                                    if (sheetCtx.mounted) {
+                                      Navigator.pop(sheetCtx);
+                                    }
+                                    if (mounted) {
+                                      _showFeedback(
+                                        isError: false,
+                                        message:
+                                            'Bank update request submitted for Admin review! Your active account remains in place.',
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setSheetState(() => isSubmitting = false);
+                                    if (mounted) {
+                                      _showFeedback(
+                                        isError: true,
+                                        message: 'Failed to submit request: $e',
+                                      );
+                                    }
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: purpleColor,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                          ),
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  'Submit Request',
+                                  style: TextStyle(
+                                    fontSize: AppTypography.font(14),
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showPendingRequestModal(BankRequest pendingReq) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.darkSurface : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF15161A);
+    final mutedTextColor = isDark ? Colors.grey[400]! : const Color(0xFF6E7191);
+    final purpleColor = AppTheme.primaryPurpleFor(isDark);
+    final borderColor =
+        isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
+
+    final reqDate =
+        '${pendingReq.createdAt.day} ${_monthName(pendingReq.createdAt.month)} ${pendingReq.createdAt.year}';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: surfaceColor,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[700] : const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bank Update Under Review',
+                        style: TextStyle(
+                          color: primaryTextColor,
+                          fontSize: AppTypography.font(17),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'Submitted on $reqDate',
+                        style: TextStyle(
+                          color: mutedTextColor,
+                          fontSize: AppTypography.font(12),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: mutedTextColor, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Pending Status Pill
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF332007)
+                      : const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF78350F)
+                        : const Color(0xFFFDE68A),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(LucideIcons.clock,
+                        color: Color(0xFFD97706), size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Status: Pending Admin Review',
+                        style: TextStyle(
+                          color: isDark
+                              ? const Color(0xFFFDE68A)
+                              : const Color(0xFF92400E),
+                          fontSize: AppTypography.font(12),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Proposed Bank Details
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF27272A)
+                      : AppTheme.lightInputFill,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: borderColor, width: 1),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'PROPOSED NEW BANK',
+                          style: TextStyle(
+                            color: purpleColor,
+                            fontSize: AppTypography.font(11),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color:
+                                const Color(0xFFD97706).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Under Review',
+                            style: TextStyle(
+                              color: const Color(0xFFD97706),
+                              fontSize: AppTypography.font(10),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      pendingReq.requestedBank.bankName,
+                      style: TextStyle(
+                        color: primaryTextColor,
+                        fontSize: AppTypography.font(15),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      pendingReq.requestedBank.accountNumber,
+                      style: TextStyle(
+                        color: primaryTextColor,
+                        fontSize: AppTypography.font(14),
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      pendingReq.requestedBank.accountName,
+                      style: TextStyle(
+                        color: mutedTextColor,
+                        fontSize: AppTypography.font(12),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Information notice
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E152A)
+                      : const Color(0xFFFAF5FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF3B1D54)
+                        : const Color(0xFFF3E8FF),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(LucideIcons.shieldCheck, size: 16, color: purpleColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Weekly payouts will continue to be safely deposited into your current active bank account until our team reviews and approves this request.',
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.purple[200]
+                              : const Color(0xFF581C87),
+                          fontSize: AppTypography.font(12),
+                          fontWeight: FontWeight.w500,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: purpleColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  child: Text(
+                    'Got It',
+                    style: TextStyle(
+                      fontSize: AppTypography.font(14),
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -294,6 +829,25 @@ class _BankDetailsWizardScreenState
     );
   }
 
+  static String _monthName(int month) {
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    if (month >= 1 && month <= 12) return m[month - 1];
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -306,6 +860,8 @@ class _BankDetailsWizardScreenState
         isDark ? AppTheme.darkBorder : AppTheme.lightInputBorder;
 
     final bank = ref.watch(bankDetailsProvider);
+    final pendingReqAsync = ref.watch(riderPendingBankRequestProvider);
+    final pendingReq = pendingReqAsync.value;
 
     return Scaffold(
       backgroundColor: bg,
@@ -338,8 +894,292 @@ class _BankDetailsWizardScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (bank != null) ...[
-                    // ── 1. Bank Detail Hero Card (Matching Wallet Hero Container) ──
+                  // ── CASE A: Active Pending Bank Request under Review ─────────
+                  if (pendingReq != null) ...[
+                    // 1. Pending Status Banner
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF332007)
+                            : const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF78350F)
+                              : const Color(0xFFFDE68A),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(LucideIcons.clock,
+                              color: Color(0xFFD97706), size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Status: Pending Admin Review',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFFFDE68A)
+                                        : const Color(0xFF92400E),
+                                    fontSize: AppTypography.font(13),
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                Text(
+                                  'Submitted ${pendingReq.createdAt.day} ${_monthName(pendingReq.createdAt.month)} ${pendingReq.createdAt.year}',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFFFBBF24)
+                                        : const Color(0xFFB45309),
+                                    fontSize: AppTypography.font(11),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 2. Active Account vs Proposed New Bank Dual Cards
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Active Account Card
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: surfaceColor,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: borderColor, width: 1),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'ACTIVE',
+                                      style: TextStyle(
+                                        color: mutedTextColor,
+                                        fontSize: AppTypography.font(10),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF059669)
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Active',
+                                        style: TextStyle(
+                                          color: const Color(0xFF059669),
+                                          fontSize: AppTypography.font(9),
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  bank?.bankName ?? 'No bank linked',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: primaryTextColor,
+                                    fontSize: AppTypography.font(13),
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  bank?.accountNumber ?? '—',
+                                  style: TextStyle(
+                                    color: primaryTextColor,
+                                    fontSize: AppTypography.font(12),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  bank?.accountName ?? '—',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: mutedTextColor,
+                                    fontSize: AppTypography.font(11),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+
+                        // Proposed New Bank Card
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF27272A)
+                                  : const Color(0xFFFAF5FF),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: isDark
+                                    ? const Color(0xFF3B1D54)
+                                    : const Color(0xFFE9D5FF),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'PROPOSED',
+                                      style: TextStyle(
+                                        color: purpleColor,
+                                        fontSize: AppTypography.font(10),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFD97706)
+                                            .withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Review',
+                                        style: TextStyle(
+                                          color: const Color(0xFFD97706),
+                                          fontSize: AppTypography.font(9),
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  pendingReq.requestedBank.bankName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: primaryTextColor,
+                                    fontSize: AppTypography.font(13),
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  pendingReq.requestedBank.accountNumber,
+                                  style: TextStyle(
+                                    color: primaryTextColor,
+                                    fontSize: AppTypography.font(12),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  pendingReq.requestedBank.accountName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: mutedTextColor,
+                                    fontSize: AppTypography.font(11),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Security Continuity Notice
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: borderColor, width: 1),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(LucideIcons.shieldCheck,
+                              color: purpleColor, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Weekly automated payouts will continue to be deposited into your Active Account until the MartFood administration team approves this update.',
+                              style: TextStyle(
+                                color: mutedTextColor,
+                                fontSize: AppTypography.font(12),
+                                fontWeight: FontWeight.w500,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Action Button: View Details
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showPendingRequestModal(pendingReq),
+                        icon: const Icon(LucideIcons.eye, size: 16),
+                        label: Text(
+                          'View Pending Request Details',
+                          style: TextStyle(
+                            fontSize: AppTypography.font(13),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: purpleColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else if (bank != null) ...[
+                    // ── CASE B: Active Bank Account with No Pending Requests ───
                     _buildBankHeroCard(
                       context: context,
                       bank: bank,
@@ -347,7 +1187,6 @@ class _BankDetailsWizardScreenState
                     ),
                     const SizedBox(height: 18),
 
-                    // ── 2. Card Action Row: Edit & Delete ────────────────────
                     Row(
                       children: [
                         Expanded(
@@ -406,7 +1245,7 @@ class _BankDetailsWizardScreenState
                       ],
                     ),
                   ] else ...[
-                    // ── Empty State: No Bank Linked ──────────────────────────
+                    // ── CASE C: No Bank Account Linked ───────────────────────
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -453,7 +1292,7 @@ class _BankDetailsWizardScreenState
                               height: 1.4,
                             ),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 22),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
@@ -528,7 +1367,7 @@ class _BankDetailsWizardScreenState
                         _buildPolicyItem(
                           icon: LucideIcons.shieldCheck,
                           text:
-                              'Account name must match your registered government ID.',
+                              'Account updates are verified by admin before taking effect.',
                           primaryTextColor: primaryTextColor,
                           mutedTextColor: mutedTextColor,
                           purpleColor: purpleColor,
@@ -569,7 +1408,6 @@ class _BankDetailsWizardScreenState
       ),
       child: Stack(
         children: [
-          // Decorative Circle Overlay 1 (Top Left)
           Positioned(
             top: -45,
             left: -45,
@@ -578,12 +1416,10 @@ class _BankDetailsWizardScreenState
               height: 140,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.10),
+                color: Colors.white.withValues(alpha: 0.08),
               ),
             ),
           ),
-
-          // Decorative Circle Overlay 2 (Bottom Right)
           Positioned(
             bottom: -55,
             right: -35,
@@ -592,60 +1428,75 @@ class _BankDetailsWizardScreenState
               height: 160,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.10),
+                color: Colors.white.withValues(alpha: 0.08),
               ),
             ),
           ),
-
-          // Card Content
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+            padding: const EdgeInsets.all(22),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            LucideIcons.shieldCheck,
+                            size: 13,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Active Settlement Account',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: AppTypography.font(11),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const Icon(
                       LucideIcons.landmark,
                       color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Primary Settlement Account',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.95),
-                        fontSize: AppTypography.font(13),
-                        fontWeight: FontWeight.w600,
-                      ),
+                      size: 22,
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 Text(
                   bank.bankName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: AppTypography.font(18),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  bank.accountNumber,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: AppTypography.font(20),
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  bank.accountNumber,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    fontSize: AppTypography.font(16),
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
+                    letterSpacing: 2.2,
                   ),
                 ),
                 const SizedBox(height: 18),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
                       child: Column(
@@ -654,11 +1505,10 @@ class _BankDetailsWizardScreenState
                           Text(
                             'ACCOUNT HOLDER',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize:
-                                  AppTypography.font(AppFontSizes.caption),
+                              color: Colors.white70,
+                              fontSize: AppTypography.font(10),
                               fontWeight: FontWeight.w600,
-                              letterSpacing: 0.6,
+                              letterSpacing: 0.5,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -722,16 +1572,16 @@ class _BankDetailsWizardScreenState
   }
 }
 
-/// Bottom Sheet modal for adding or editing payout bank account details.
+/// Bottom Sheet modal for entering payout bank account details with Paystack resolution.
 class _PayoutAccountBottomSheet extends StatefulWidget {
   final BankDetails? existingBank;
   final Map<String, String> banks;
-  final Function(BankDetails) onSaved;
+  final Function(BankDetails) onProceedToConfirm;
 
   const _PayoutAccountBottomSheet({
     required this.existingBank,
     required this.banks,
-    required this.onSaved,
+    required this.onProceedToConfirm,
   });
 
   @override
@@ -745,7 +1595,6 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
   late TextEditingController _accountNumberController;
   late TextEditingController _accountNameController;
   bool _isResolving = false;
-  bool _isSaving = false;
   String? _errorMessage;
 
   @override
@@ -815,7 +1664,7 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
     });
   }
 
-  void _submit() async {
+  void _submit() {
     final nuban = _accountNumberController.text.trim();
     final name = _accountNameController.text.trim();
 
@@ -830,11 +1679,6 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
       return;
     }
 
-    setState(() {
-      _isSaving = true;
-      _errorMessage = null;
-    });
-
     final details = BankDetails(
       bankName: _selectedBankName,
       accountName: name,
@@ -842,11 +1686,8 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
       bankCode: _selectedBankCode,
     );
 
-    await widget.onSaved(details);
-
-    if (mounted) {
-      Navigator.pop(context);
-    }
+    Navigator.pop(context);
+    widget.onProceedToConfirm(details);
   }
 
   void _openBankSelectorModal() {
@@ -1269,11 +2110,11 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
                 ),
                 const SizedBox(height: 24),
 
-                // ── Submit Button ─────────────────────────────────────────────
+                // ── Submit / Continue Button ──────────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isSaving ? null : _submit,
+                    onPressed: _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: purpleColor,
                       foregroundColor: Colors.white,
@@ -1283,25 +2124,16 @@ class _PayoutAccountBottomSheetState extends State<_PayoutAccountBottomSheet> {
                         borderRadius: BorderRadius.circular(24),
                       ),
                     ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(
-                            widget.existingBank != null
-                                ? 'Update Bank Account'
-                                : 'Link Bank Account',
-                            style: TextStyle(
-                              fontSize: AppTypography.font(14),
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
+                    child: Text(
+                      widget.existingBank != null
+                          ? 'Review & Submit Update'
+                          : 'Review & Link Account',
+                      style: TextStyle(
+                        fontSize: AppTypography.font(14),
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ],

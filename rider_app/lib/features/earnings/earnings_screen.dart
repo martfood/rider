@@ -58,6 +58,7 @@ class EarningsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(riderProfileProvider);
     final bank = ref.watch(bankDetailsProvider);
+    final pendingBankReq = ref.watch(riderPendingBankRequestProvider).value;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final purpleColor = AppTheme.primaryPurpleFor(isDark);
@@ -204,6 +205,46 @@ class EarningsScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  if (pendingBankReq != null) ...[
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: () => context.push('/account/bank-details'),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF332007) : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF78350F) : const Color(0xFFFDE68A),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(LucideIcons.clock, color: Color(0xFFD97706), size: 14),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Bank update under review by admin',
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                                  fontSize: AppTypography.font(11),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 11,
+                              color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
 
                   // ── 3. Transparent Commission Notice (When > 0%) ─────────────
                   StreamBuilder<DocumentSnapshot>(

@@ -20,17 +20,16 @@ class SessionNotifier extends Notifier<bool> {
   void signOut() => state = false;
 }
 
-/// Authentication session provider.
 final sessionProvider = NotifierProvider<SessionNotifier, bool>(
   SessionNotifier.new,
 );
 
-/// Reactive stream of Firebase Auth state changes.
+/// Stream provider for Firebase Auth state changes.
 final authStateProvider = StreamProvider<User?>((ref) {
   return FirebaseAuth.instance.authStateChanges();
 });
 
-/// Resolves the currently authenticated rider's UID (or null if signed out).
+/// Current authenticated rider UID provider.
 final currentRiderUidProvider = Provider<String?>((ref) {
   final authAsync = ref.watch(authStateProvider);
   return authAsync.value?.uid ?? FirebaseAuth.instance.currentUser?.uid;
@@ -43,6 +42,7 @@ void resetAllRiderProviders(WidgetRef ref) {
   ref.invalidate(ordersProvider);
   ref.invalidate(riderAvailabilityProvider);
   ref.invalidate(bankDetailsProvider);
+  ref.invalidate(riderPendingBankRequestProvider);
   ref.invalidate(ledgerEntriesProvider);
 }
 
@@ -53,6 +53,7 @@ void resetAllRiderProvidersRef(Ref ref) {
   ref.invalidate(ordersProvider);
   ref.invalidate(riderAvailabilityProvider);
   ref.invalidate(bankDetailsProvider);
+  ref.invalidate(riderPendingBankRequestProvider);
   ref.invalidate(ledgerEntriesProvider);
 }
 
@@ -64,18 +65,15 @@ Future<void> appSignOut(WidgetRef ref) async {
     NotificationService.cancelNotificationsSubscription();
     await FirebaseAuth.instance.signOut();
   } catch (_) {}
-  ref.read(sessionProvider.notifier).signOut();
   resetAllRiderProviders(ref);
 }
 
-/// Complete sign out helper via Ref.
+/// Variant of appSignOut that accepts a Ref instead of WidgetRef (for use inside Notifiers/Providers).
 Future<void> appSignOutRef(Ref ref) async {
   try {
     RiderLocationService.instance.stopLiveTracking();
     NotificationService.cancelNotificationsSubscription();
     await FirebaseAuth.instance.signOut();
   } catch (_) {}
-  ref.read(sessionProvider.notifier).signOut();
   resetAllRiderProvidersRef(ref);
 }
-

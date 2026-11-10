@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_widgets/core/theme/app_theme.dart';
+import 'package:shared_widgets/widgets/notice_bottom_sheet.dart';
 
 import '../../domain/bank_details.dart';
 import '../../providers/rider_app_providers.dart';
@@ -246,25 +247,21 @@ class EarningsScreen extends ConsumerWidget {
                     ),
                   ],
 
-                  // ── 3. Transparent Commission Notice (When > 0%) ─────────────
+                  // ── 3. Simplified Platform Commission Notice (Always Visible) ─────────────
                   StreamBuilder<DocumentSnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('settings')
                         .doc('rider_settings')
                         .snapshots(),
                     builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data == null) {
-                        return const SizedBox.shrink();
-                      }
-                      final data =
-                          snapshot.data!.data() as Map<String, dynamic>?;
-                      final rawComm = data?['commissionPercent'];
-                      final comm = rawComm is num
-                          ? rawComm.toDouble()
-                          : (double.tryParse(rawComm?.toString() ?? '') ?? 0.0);
-
-                      if (comm <= 0) {
-                        return const SizedBox.shrink();
+                      double comm = 0.0;
+                      if (snapshot.hasData && snapshot.data?.exists == true) {
+                        final data =
+                            snapshot.data!.data() as Map<String, dynamic>?;
+                        final rawComm = data?['commissionPercent'];
+                        comm = rawComm is num
+                            ? rawComm.toDouble()
+                            : (double.tryParse(rawComm?.toString() ?? '') ?? 0.0);
                       }
 
                       final commLabel = comm == comm.roundToDouble()
@@ -272,17 +269,17 @@ class EarningsScreen extends ConsumerWidget {
                           : '${comm.toStringAsFixed(1)}%';
 
                       final bannerBg = isDark
-                          ? purpleColor.withValues(alpha: 0.10)
+                          ? purpleColor.withValues(alpha: 0.08)
                           : const Color(0xFFF5F3FF);
                       final bannerBorder = isDark
-                          ? purpleColor.withValues(alpha: 0.25)
+                          ? purpleColor.withValues(alpha: 0.20)
                           : const Color(0xFFDDD6FE);
 
                       return Container(
                         width: double.infinity,
                         margin: const EdgeInsets.only(top: 20),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                            horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
                           color: bannerBg,
                           borderRadius: BorderRadius.circular(16),
@@ -292,23 +289,21 @@ class EarningsScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
-                              width: 34,
-                              height: 34,
+                              width: 32,
+                              height: 32,
                               decoration: BoxDecoration(
                                 color: purpleColor.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
                                 LucideIcons.percent,
-                                size: 16,
+                                size: 15,
                                 color: purpleColor,
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+                              child: Row(
                                 children: [
                                   Text(
                                     'Platform Commission: $commLabel',
@@ -318,13 +313,20 @@ class EarningsScreen extends ConsumerWidget {
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'A $commLabel platform deduction is applied to delivery fees upon order completion.',
-                                    style: TextStyle(
-                                      color: mutedTextColor,
-                                      fontSize: AppTypography.font(11.5),
-                                      height: 1.3,
+                                  const SizedBox(width: 6),
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () => NoticeBottomSheet.show(
+                                      context,
+                                      noticeKey: 'riderCommission',
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(4),
+                                      child: Icon(
+                                        LucideIcons.info,
+                                        size: 14,
+                                        color: mutedTextColor,
+                                      ),
                                     ),
                                   ),
                                 ],

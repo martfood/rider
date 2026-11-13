@@ -264,6 +264,10 @@ class EarningsScreen extends ConsumerWidget {
                             : (double.tryParse(rawComm?.toString() ?? '') ?? 0.0);
                       }
 
+                      if (comm <= 0) {
+                        return const SizedBox.shrink();
+                      }
+
                       final commLabel = comm == comm.roundToDouble()
                           ? '${comm.toInt()}%'
                           : '${comm.toStringAsFixed(1)}%';

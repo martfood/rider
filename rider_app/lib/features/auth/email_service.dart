@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 
 class EmailService {
   // Base64 decoded at runtime to prevent automated GitHub secret scanning bot revocations
-  static final String _apiKey = utf8.decode(base64Decode('cmVfaVg2Y25xanlfRzFLem5vR2FqSHpIejR4Q2Zpd1lOMm5u'));
+  static final String _apiKey = utf8
+      .decode(base64Decode('cmVfaVg2Y25xanlfRzFLem5vR2FqSHpIejR4Q2Zpd1lOMm5u'));
   static const String _sendEmailUrl = "https://api.resend.com/emails";
   static const String _senderEmail = "no-reply@martfooddelivery.com";
 
@@ -37,19 +38,21 @@ class EmailService {
 
     try {
       final url = Uri.parse(_sendEmailUrl);
-      final response = await http.post(
-        url,
-        headers: {
-          "Authorization": "Bearer $_apiKey",
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "from": "MartFood <$_senderEmail>",
-          "to": [to],
-          "subject": subject,
-          "html": htmlContent,
-        }),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            url,
+            headers: {
+              "Authorization": "Bearer $_apiKey",
+              "Content-Type": "application/json",
+            },
+            body: jsonEncode({
+              "from": "MartFood <$_senderEmail>",
+              "to": [to],
+              "subject": subject,
+              "html": htmlContent,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return true;
@@ -239,6 +242,56 @@ class EmailService {
     return await _sendResendEmail(
       to: email,
       subject: "$otp is your MartFood password reset code",
+      htmlContent: htmlContent,
+    );
+  }
+
+  /// Sends an email notification to the customer when their order is picked up by the rider.
+  static Future<bool> sendOrderPickedUpEmail({
+    required String customerEmail,
+    required String customerName,
+    required String orderId,
+    required String restaurantName,
+  }) async {
+    final shortId = orderId.length > 8
+        ? orderId.substring(0, 8).toUpperCase()
+        : orderId.toUpperCase();
+    final htmlContent = '''
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }
+          .container { max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; }
+          .header { background-color: $_brandPurple; padding: 24px; text-align: center; color: #ffffff; }
+          .content { padding: 28px 24px; color: #334155; line-height: 1.6; }
+          .badge { display: inline-block; background-color: $_brandPurpleLight; color: $_brandPurple; border: 1px solid $_brandPurpleBorder; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; margin-bottom: 16px; }
+          .footer { padding: 18px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 800;">MartFood Delivery</h1>
+          </div>
+          <div class="content">
+            <div class="badge">Order Picked Up</div>
+            <h2 style="color: #0f172a; margin-top: 0;">Your order is on the way!</h2>
+            <p>Hi $customerName,</p>
+            <p>Your rider has picked up your order <strong>#$shortId</strong> from <strong>$restaurantName</strong> and is heading to your delivery address.</p>
+            <p style="font-size: 13px; color: #64748b; margin-top: 20px;">You can track your rider's live progress in the MartFood app.</p>
+          </div>
+          <div class="footer">
+            &copy; 2026 MartFood Technologies. All rights reserved.
+          </div>
+        </div>
+      </body>
+      </html>
+    ''';
+
+    return await _sendResendEmail(
+      to: customerEmail,
+      subject: "Your MartFood order #$shortId has been picked up!",
       htmlContent: htmlContent,
     );
   }

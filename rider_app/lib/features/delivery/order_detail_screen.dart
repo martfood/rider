@@ -12,6 +12,7 @@ import 'package:shared_widgets/core/theme/app_theme.dart';
 import 'package:shared_widgets/widgets/section_divider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../auth/email_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../domain/order_stage.dart';
 import '../../domain/rider_order.dart';
@@ -771,6 +772,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     switch (order.stage) {
       case OrderStage.enRouteToRestaurant:
         await _setStage(OrderStage.atRestaurant);
+        _notifyCustomerOrderPickedUp(order);
         break;
 
       case OrderStage.atRestaurant:
@@ -791,6 +793,40 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           context.pop();
         }
         break;
+    }
+  }
+
+  Future<void> _notifyCustomerOrderPickedUp(RiderOrder order) async {
+    try {
+      final orderDoc = await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(order.id)
+          .get();
+      final orderData = orderDoc.data();
+      String? customerEmail =
+          (orderData?['customerEmail'] ?? orderData?['email'])?.toString().trim();
+      final customerId = orderData?['customerId']?.toString().trim();
+
+      if ((customerEmail == null || customerEmail.isEmpty) &&
+          customerId != null &&
+          customerId.isNotEmpty) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(customerId)
+            .get();
+        customerEmail = userDoc.data()?['email']?.toString().trim();
+      }
+
+      if (customerEmail != null && customerEmail.isNotEmpty) {
+        await EmailService.sendOrderPickedUpEmail(
+          customerEmail: customerEmail,
+          customerName: order.customerName.isNotEmpty ? order.customerName : 'Customer',
+          orderId: order.id,
+          restaurantName: order.restaurantName,
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to send pickup email: $e');
     }
   }
 
